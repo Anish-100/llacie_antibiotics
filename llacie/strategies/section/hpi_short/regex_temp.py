@@ -112,7 +112,10 @@ class ShortHPISectionRegexStrategy(AbstractStrategy):
                     f"Extracting HPIs ({fail_count} failed/{len(all_note_ids)} total)")
                 
                 df = self.db.get_full_text_notes(note_ids)
+                echo_info([self.clean_note_text(text) for text in df['note_text']])
+
                 df['note_text'] = [self.clean_note_text(text) for text in df['note_text']]
+                echo_info([self.extract_short_hpi(text) for text in df['note_text']])
                 df['hpi_short'] = [self.extract_short_hpi(text) for text in df['note_text']]
 
                 for _, row in df.iterrows():

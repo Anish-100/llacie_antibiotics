@@ -58,3 +58,26 @@ class PresentingSymptomsEpisodeLabelV2Top30Task(PresentingSymptomsEpisodeLabelV2
         "hypoxemia", "hypotension", "dizziness", "dysuria", "rhinorrhea", "lightheadedness",
         "fall", "urinary frequency", "diaphoresis", "leg swelling"        
     }
+
+class AntibioticsEpisodeLabelTask(AbstractEpisodeLabelTask):
+    """\
+    Antibiotics taken for the given episode, limiting to patients with suspected infection.
+    
+    This implementation uses an vocab from an initial list, trying to simplify some of the ambiguities in
+    the earlier vocab via additional curation (mostly merging and trimming terms).
+    """
+    name = "antibiotics_eplab1"
+
+    vocab = Vocab("cleaned_antibiotics.xlsx", sheet_name="Brand Names")
+    max_human_labels = 10
+    episode_join_sql = """
+        LEFT JOIN "{{cohort_table}}" AS esc ON
+            e."id" = esc."FK_episode_id"
+    """
+    episode_where_sql = """
+        "infectionCriteria" IS TRUE
+    """
+    note_where_sql = """
+        "InpatientNoteTypeDSC" IN ('H&P')
+        AND EXTRACT(EPOCH FROM ("DateOfServiceDTS" - "startDTS")) < 24 * 60 * 60
+    """

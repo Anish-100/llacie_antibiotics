@@ -25,3 +25,10 @@ build/
 docker-compose.override.yml
 
 debug/
+bin
+include
+lib
+share
+/.*
+**/antibiotics.md
+**/llacie/physionet.org

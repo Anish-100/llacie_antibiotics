@@ -96,8 +96,9 @@ class App(object):
 
         with open(input_path, 'r') as f:
             content = f.read()
-
-        notes = re.split(r'\n#{10,}\n', content)
+        # Can handle two different types of notes. 
+        #notes = re.split(r'\n#{10,}\n', content)
+        notes = re.findall(r'NOTE_ID:.*?\n={10,}\n(.*?)(?=\n={10,}\n|\Z)', content, re.DOTALL)
         notes = [note.strip() for note in notes if note.strip()]
         echo_info(f"Found {len(notes)} notes to import.")
 
@@ -278,5 +279,8 @@ class App(object):
             if len(df_human) == 0:
                 echo_warn(f"Warn: No human annotations for {strategy.task.name}, skipping")
                 continue
-
+            echo_info('DF Pred')
+            print(df_pred)
+            echo_info('DF_Human')
+            print(df_human)
             self._echo_confusion_matrices(df_human, df_pred, vocab, other_human, bootstrap_samples)

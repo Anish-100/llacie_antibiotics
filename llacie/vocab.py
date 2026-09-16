@@ -24,12 +24,17 @@ class Vocab:
         self.from_file = path.join(PACKAGE_DIR, "vocabs", from_file)
         cache_dir = platformdirs.user_cache_dir("llacie", "tpaklab")
         self.cache_file = path.join(cache_dir, "vocabs", f"{from_file}.pkl")
-
+        echo_info(self.from_file)
         if self._load_from_cache():
             return
         elif self.from_file.endswith(".xlsx") or self.from_file.endswith(".xls"):
             echo_info(f"Parsing and caching vocabulary in vocabs/{from_file}")
-            self._parse_df(pd.read_excel(self.from_file, sheet_name=sheet_name))
+            print('FILE',self.from_file)
+            if self.from_file == '/app/llacie/vocabs/cleaned_antibiotics.xlsx':
+                self._parse_df_antibiotics(pd.read_excel(self.from_file,sheet_name=sheet_name))
+            else:
+                self._parse_df(pd.read_excel(self.from_file, sheet_name=sheet_name))
+          
         else:
             raise NotImplementedError
 
@@ -73,7 +78,7 @@ class Vocab:
             pickled = {"_terms": self._terms, "_ngram_dicts": self._ngram_dicts}
             pickle.dump(pickled, f)
 
-
+    # What is this hmmm ?
     def _add_terms(self, terms, synonyms=None):
         if synonyms is not None:
             if not isinstance(synonyms, list):
@@ -81,6 +86,13 @@ class Vocab:
         for term in terms:
             self._terms[term].add(term)
             self._terms[term].update(synonyms)
+    
+    def _add_antibiotic_terms(self, terms, synonyms=None):
+        if synonyms is not None:
+            if not isinstance(synonyms, list):
+                synonyms = [synonyms]
+        self._terms[terms].add(terms)            
+            #self._terms[term].update(synonyms)
 
 
     def _parse_df(self, vocab_df):
@@ -96,6 +108,15 @@ class Vocab:
             self._ngram_dicts.append(ngram_dict)
         self._save_to_cache()
 
+
+    def _parse_df_antibiotics(self, vocab_df):
+        print('Antibiotics')
+        print(vocab_df)
+        vocab_df = vocab_df.dropna(subset=['Drug Name']).copy()
+        for _, row in vocab_df.iterrows():
+            print(row['Drug Name'])
+            self._add_antibiotic_terms(row['Drug Name'].strip())
+        self._save_to_cache()
 
     def find_terms_in_feature(self, feature_value):
         """Given a textual feature, searches each line of the feature for terms from this
