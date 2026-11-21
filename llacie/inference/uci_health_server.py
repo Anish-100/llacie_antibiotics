@@ -1,6 +1,17 @@
+import os
+
 from dotenv import dotenv_values
 from openai import OpenAI, OpenAIError
 from pathlib import Path
+
+DEFAULT_MODEL = 'openai/gpt-oss-120b'
+
+
+def api_model_name():
+    """The model requested from the API server: MODEL_NAME from the environment, then .env,
+    then .env.example (same precedence as llacie's Config), falling back to DEFAULT_MODEL."""
+    settings = {**dotenv_values(".env.example"), **dotenv_values(".env"), **os.environ}
+    return (settings.get('MODEL_NAME') or '').strip() or DEFAULT_MODEL
 
 
 class UCI_HEALTH:
@@ -15,7 +26,7 @@ class UCI_HEALTH:
             
         self.config = {}
         
-        self.DEFAULT_MODEL = 'openai/gpt-oss-120b'
+        self.DEFAULT_MODEL = DEFAULT_MODEL
     
     def load_config(self):
         """Loads config file from the environment"""
@@ -41,7 +52,7 @@ class UCI_HEALTH:
 
         
         stream = client.chat.completions.create(
-            model= self.config['model'] if model is None else model,
+            model=api_model_name() if model is None else model,
             messages=[
                 {
                     "role":"system",

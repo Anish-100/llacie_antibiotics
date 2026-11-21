@@ -3,7 +3,7 @@ import json
 from textwrap import dedent
 
 from .abstract import AbstractStrategy
-from ..inference.uci_health_server import UCI_HEALTH
+from ..inference.uci_health_server import UCI_HEALTH, api_model_name
 from ..utils import echo_warn, echo_info
 
 
@@ -18,7 +18,7 @@ class AbstractUciHealthStrategy(AbstractStrategy):
     """
     SECTION_STRATEGY_CLASS = None
 
-    NICE_MODEL_NAME = "GPT OSS 120B"
+    NICE_MODEL_NAME = api_model_name()
 
     LLM_SYSTEM_PROMPT = dedent("""\
         You are a clinical researcher that reads medical charts and answers questions about them.
