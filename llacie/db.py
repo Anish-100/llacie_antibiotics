@@ -493,17 +493,18 @@ class LlacieDatabase(object):
                 """)
             df = pd.read_sql_query(notes_without_feature_sql, self.conn)
         elif task.output_type == out_t.EPISODE_LABEL:
+            task_id = self.get_or_register_task(task).id
             eps_without_label_sql = text(f"""
                 SELECT DISTINCT e."id"
                     FROM "{self.ep_table}" AS e
-                    LEFT OUTER JOIN "{self.prefix}episode_labels" as el
+                    LEFT OUTER JOIN "{self.prefix}{task.label_table}" as el
                         ON el."FK_episode_id" = e."id"
-                            AND "task_name" = '{task.name}'
+                            AND el."FK_task_id" = {int(task_id)}
                             {strategy_sql_clause}
                             AND "FK_human_annotator" {human_annotator_sql_clause}
                     {self.interpolate_config_vars(task.episode_join_sql)}
                     {having_notes_join_sql}
-                    WHERE el."task_name" IS NULL
+                    WHERE el."id" IS NULL
                         AND ({self.interpolate_config_vars(task.episode_where_sql)})
                         {having_notes_where_sql}
                     ORDER BY "id"
