@@ -45,6 +45,16 @@ def import_notes_text(app, input_path, overwrite):
     """Import notes from plain text files."""
     app.import_notes_text(input_path, overwrite)
 
+@import_notes.command(name="csv")
+@click.argument('input_path', type=click.Path(exists=True))
+@click.option('--overwrite/--no-overwrite', default=False,
+    help="Permits the `notes` table to be truncated if it already contains rows.")
+@click.pass_obj
+def import_notes_csv(app, input_path, overwrite):
+    """Import notes from a CSV with patientEncounterID, startDTS, DateOfServiceDTS, NoteID
+    and note_text columns (one row per note; other columns are ignored)."""
+    app.import_notes_csv(input_path, overwrite)
+
 @import_notes.command(name="edw")
 @click.option('--overwrite/--no-overwrite', default=False,
     help="Permits the `notes` table to be truncated if it already contains rows.")

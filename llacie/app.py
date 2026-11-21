@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import math
 import re
 from click import echo
@@ -109,6 +110,22 @@ class App(object):
         self.db.import_notes(notes)
         echo_info(f"Info: Successfully imported {len(notes)} notes.")
     
+
+    def import_notes_csv(self, input_path, overwrite=False):
+        echo_info(f"Info: Importing notes from CSV file {input_path}.")
+        df = pd.read_csv(input_path, dtype={"patientEncounterID": str, "NoteID": str})
+        missing = set(self.db.NOTES_CSV_COLUMNS) - set(df.columns)
+        if missing:
+            return echo_err(f"Error: Missing required column(s): {', '.join(sorted(missing))}")
+        df = df.dropna(subset=["patientEncounterID", "NoteID", "note_text"])
+        if len(df) == 0:
+            return echo_warn("Warn: No notes found in the file.")
+        self.db.warn_or_truncate('notes', overwrite)
+
+        num_new, num_reused = self.db.import_notes_csv(df)
+        echo_info(f"Info: Imported {len(df)} notes for {num_new + num_reused} encounters "
+            f"({num_new} new episodes, {num_reused} existing).")
+
 
     def import_notes_edw(self, overwrite=False, resume_note_text=False):
         if not resume_note_text:

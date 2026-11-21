@@ -382,6 +382,60 @@ class LlacieDatabase(AntibioticLabelsMixin):
         notes_df = pd.DataFrame(note_records)
         self.append_df_to_table(notes_df, 'notes')
 
+    NOTES_CSV_COLUMNS = ["patientEncounterID", "startDTS", "DateOfServiceDTS", "NoteID",
+        "note_text"]
+
+    def import_notes_csv(self, df):
+        """Imports notes from a DataFrame with the NOTES_CSV_COLUMNS (one row per note).
+
+        Each patientEncounterID becomes one episode, admitted at its startDTS and included in
+        the cohort. An encounter that already has an episode reuses it, so re-importing after
+        truncating the notes table doesn't duplicate episodes. Notes get the default note type
+        (H&P)."""
+        df = df.copy()
+        for col in ["patientEncounterID", "NoteID"]:
+            df[col] = df[col].astype("int64")
+        for col in ["startDTS", "DateOfServiceDTS"]:
+            df[col] = pd.to_datetime(df[col])
+
+        encounters = df.groupby("patientEncounterID", as_index=False)["startDTS"].first()
+        existing = set(self._gather_column_values_into_set(
+            [(self.ep_table, "admitPatientEncounterID")]))
+        new_encounters = encounters[~encounters["patientEncounterID"].isin(existing)]
+        if len(new_encounters):
+            pd.DataFrame({
+                "patientID": "T" + new_encounters["patientEncounterID"].astype(str),
+                "admitPatientEncounterID": new_encounters["patientEncounterID"],
+                "dcPatientEncounterID": new_encounters["patientEncounterID"],
+                "startDTS": new_encounters["startDTS"],
+            }).to_sql(self.ep_table, self.conn, if_exists='append', index=False)
+            self.conn.commit()
+
+        ep_ids = pd.read_sql_query(text(f'''
+            SELECT "id", "admitPatientEncounterID" FROM "{self.ep_table}"
+                WHERE "admitPatientEncounterID" = ANY(:encounter_ids)
+            '''), self.conn,
+            params={"encounter_ids": [int(e) for e in encounters["patientEncounterID"]]})
+        encounter_to_episode = dict(zip(ep_ids["admitPatientEncounterID"], ep_ids["id"]))
+
+        if len(new_encounters):
+            pd.DataFrame({
+                "FK_episode_id": new_encounters["patientEncounterID"].map(encounter_to_episode),
+                "infectionCriteria": True,
+                "excl_ST0_combined": False,
+            }).to_sql(self.cohort_table, self.conn, if_exists='append', index=False)
+            self.conn.commit()
+
+        notes_df = pd.DataFrame({
+            "FK_episode_id": df["patientEncounterID"].map(encounter_to_episode),
+            "NoteID": df["NoteID"],
+            "PatientEncounterID": df["patientEncounterID"],
+            "DateOfServiceDTS": df["DateOfServiceDTS"],
+            "note_text": df["note_text"],
+        })
+        self.append_df_to_table(notes_df, 'notes')
+        return len(new_encounters), len(encounters) - len(new_encounters)
+
 
     #############################
     # STRATEGIES AND TASKS
