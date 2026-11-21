@@ -1,29 +1,23 @@
 from textwrap import dedent
 
-from ...custom_health_server import AbstractUciHealthStrategy
+from ...custom_health_server import AbstractUciHealthStrategy, api_model_label
 from ...section.medicines.all_sections import AntibioticsNoStrategy
 from ....tasks.feature import AntibioticsFeatureTask
 
 
-class AntibioticsGPTOSS120BStrategy(AbstractUciHealthStrategy):
+class AntibioticsApiStrategy(AbstractUciHealthStrategy):
     """\
-    Attempts to extract the `antibiotics` feature using Llama 3 Instruct 8B model,
-    an 8B parameter model in the Llama family released by Meta in April 2024. 
-
-    This uses the original weights casted to torch.float16, because the Tesla V100s that we can 
-    run this on in ERISXdl do not support bfloat16. 
-    https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct
-
+    Extracts the `antibiotics` feature with whichever model the API server is configured for
+    (MODEL_NAME in .env). The model is part of the strategy name, so each model's results are
+    stored separately.
     """
     task = AntibioticsFeatureTask
-    name = "feature.antibiotics.gpt_oss_120B"
+    name = f"feature.antibiotics.api.{api_model_label()}"
     version = "0.0.1"
     prereq_tasks = []
 
     SECTION_STRATEGY_CLASS = AntibioticsNoStrategy
 
-    
-    NICE_MODEL_NAME = "GPT OSS 120B"
 
     # Model context length. Note that Vllm will not generate past the end of the context window.
     LLM_MAX_MODEL_LENGTH = 120000

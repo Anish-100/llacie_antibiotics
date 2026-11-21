@@ -3,7 +3,7 @@ import json
 from textwrap import dedent
 
 from .abstract import AbstractStrategy
-from ..inference.uci_health_server import UCI_HEALTH, api_model_name
+from ..inference.uci_health_server import UCI_HEALTH, api_model_name, api_model_label
 from ..utils import echo_warn, echo_info
 
 

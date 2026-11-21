@@ -1,4 +1,5 @@
 import os
+import re
 
 from dotenv import dotenv_values
 from openai import OpenAI, OpenAIError
@@ -12,6 +13,12 @@ def api_model_name():
     then .env.example (same precedence as llacie's Config), falling back to DEFAULT_MODEL."""
     settings = {**dotenv_values(".env.example"), **dotenv_values(".env"), **os.environ}
     return (settings.get('MODEL_NAME') or '').strip() or DEFAULT_MODEL
+
+
+def api_model_label():
+    """api_model_name() made safe for a strategy name, e.g. openai/gpt-oss-120b ->
+    openai_gpt_oss_120b. Strategy names use dots as separators, so dots are replaced too."""
+    return re.sub(r'[^a-z0-9]+', '_', api_model_name().lower()).strip('_')
 
 
 class UCI_HEALTH:
