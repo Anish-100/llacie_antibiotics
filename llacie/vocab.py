@@ -28,11 +28,7 @@ class Vocab:
             return
         elif self.from_file.endswith(".xlsx") or self.from_file.endswith(".xls"):
             echo_info(f"Parsing and caching vocabulary in vocabs/{from_file}")
-            if path.basename(self.from_file) == 'cleaned_antibiotics.xlsx':
-                self._parse_df_antibiotics(pd.read_excel(self.from_file,sheet_name=sheet_name))
-            else:
-                self._parse_df(pd.read_excel(self.from_file, sheet_name=sheet_name))
-          
+            self._parse_df(pd.read_excel(self.from_file, sheet_name=sheet_name))
         else:
             raise NotImplementedError
 
@@ -85,13 +81,6 @@ class Vocab:
             self._terms[term].add(term)
             self._terms[term].update(synonyms)
     
-    def _add_antibiotic_terms(self, terms, synonyms=None):
-        if synonyms is not None:
-            if not isinstance(synonyms, list):
-                synonyms = [synonyms]
-        self._terms[terms].add(terms)            
-            #self._terms[term].update(synonyms)
-
 
     def _parse_df(self, vocab_df):
         max_n = max(vocab_df['n'])
@@ -106,12 +95,6 @@ class Vocab:
             self._ngram_dicts.append(ngram_dict)
         self._save_to_cache()
 
-
-    def _parse_df_antibiotics(self, vocab_df):
-        vocab_df = vocab_df.dropna(subset=['Drug Name']).copy()
-        for _, row in vocab_df.iterrows():
-            self._add_antibiotic_terms(row['Drug Name'].strip())
-        self._save_to_cache()
 
     def find_terms_in_feature(self, feature_value):
         """Given a textual feature, searches each line of the feature for terms from this

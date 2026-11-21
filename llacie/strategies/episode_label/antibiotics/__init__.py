@@ -22,7 +22,6 @@ class AbstractAntibioticsStrategy(AbstractStrategy):
 
     def run(self, all_episode_ids, batch_size = None):
         fail_count = 0
-        vocab = self.task.vocab
         batch_size = batch_size if batch_size is not None else self.BATCH_SIZE
 
         echo_info(f"In batches of {batch_size}")

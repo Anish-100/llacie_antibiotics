@@ -63,13 +63,12 @@ class AntibioticsEpisodeLabelTask(AbstractEpisodeLabelTask):
     """\
     Antibiotics taken for the given episode, limiting to patients with suspected infection.
     
-    This implementation uses an vocab from an initial list, trying to simplify some of the ambiguities in
-    the earlier vocab via additional curation (mostly merging and trimming terms).
+    Labels go to the antibiotic_labels table, one row per drug course. There is no vocab:
+    drug names are canonicalized with llacie/database/drugs.db, the source of truth for drugs.
     """
     name = "antibiotics_eplab1"
     label_table = "antibiotic_labels"
 
-    vocab = Vocab("cleaned_antibiotics.xlsx", sheet_name="Brand Names")
     max_human_labels = 10
     episode_join_sql = """
         LEFT JOIN "{{cohort_table}}" AS esc ON
