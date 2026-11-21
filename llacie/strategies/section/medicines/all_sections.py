@@ -45,11 +45,11 @@ class AntibioticsNoStrategy(AbstractStrategy):
                 df['note_text'] = [self.clean_note_text(text) for text in df['note_text']]
                 df['medications']= [self.extract_medicine_list(text) for text in df['note_text']]
 
-            for _, row in df.iterrows():
-                if row['medications'] is not None and len(row['medications']) > 0:
-                    self.db.insert_note_section(row['id'], self, row['medications'])
-                else:
-                    fail_count += 1
+                for _, row in df.iterrows():
+                    if row['medications'] is not None and len(row['medications']) > 0:
+                        self.db.insert_note_section(row['id'], self, row['medications'])
+                    else:
+                        fail_count += 1
 
 
         echo_info(f"Finished! ({fail_count} failed/{len(all_note_ids)} total)")
