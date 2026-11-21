@@ -36,34 +36,54 @@ class AbstractAntibioticsStrategy(AbstractStrategy):
             # Some episodes may not have any notes with the required feature
             fail_count += len(ep_ids) - len(df)
             for _, row in df.iterrows():
-                labels_dict = []
-                json_object = json.loads(row['feature_value'])
-                for json_parsed in json_object:
-                    drug_name = json_parsed['Drug Name'].lower()
-                    drug_name = drug_name.replace(' ','_')
-                    # Refactor logic to calculate end/start data into new function.
-                    diff = get_duration(json_parsed)
-                    try:
-                        drug_name_label = query(drug_name)[0][0]
-                    except Exception as e:
-                        print('Not found', drug_name)
-                        drug_name_label = 'Drug not in List'
-                    labels_dict.append((drug_name_label,diff))
-                if len(labels_dict) == 0: 
-                    fail_count += 1
-                else:
-                    self.db.replace_antibiotic_episode_labels(self, row, labels_dict)
+                label_rows = [to_label_row(item) for item in json.loads(row['feature_value'])]
+                if len(label_rows) == 0:
+                    # No antibiotics found: one empty row marks the episode as finished
+                    label_rows = [empty_label_row()]
+                self.db.replace_antibiotic_labels(self, row, label_rows)
 
         echo_info(f"Finished! ({fail_count} failures/{len(all_episode_ids)} total)")
 
-def get_duration(json_parsed):
-    """ Gets the json object and extracts the duration in the las """
-    if json_parsed['End date'] is None or json_parsed['Start date'] is None \
-         or json_parsed['Start date'] == 'NULL' or json_parsed['End date'] == 'NULL':
-        diff = None
-    else:
-        json_parsed['End date'] = pd.to_datetime(json_parsed['End date'])
-        json_parsed['Start date'] = pd.to_datetime(json_parsed['Start date'])
-        diff = json_parsed['End date'] - json_parsed['Start date']
-        diff = str(diff.days)
-        return diff
+
+def empty_label_row():
+    return {"drug_name": None, "drug_name_raw": None, "start_date": None, "end_date": None,
+        "duration_days": None, "is_current": None}
+
+
+def to_label_row(item):
+    """Converts one drug dict from the feature's JSON into an antibiotic_labels row."""
+    raw = (item.get('Drug Name') or '').strip()
+    try:
+        drug_name = query(raw.lower().replace(' ', '_'))[0][0]
+    except IndexError:
+        drug_name = None    # Not in drugs.db; drug_name_raw keeps what the model wrote
+    start_date = parse_date(item.get('Start date'))
+    end_date = parse_date(item.get('End date'))
+    return {
+        **empty_label_row(),
+        "drug_name": drug_name,
+        "drug_name_raw": raw or None,
+        "start_date": start_date,
+        "end_date": end_date,
+        "duration_days": get_duration(item.get('Duration'), start_date, end_date),
+    }
+
+
+def parse_date(value):
+    """Returns a date, or None for empty/'NULL'/unparseable values."""
+    if value is None or str(value).strip().upper() in ('', 'NULL', 'NONE'):
+        return None
+    parsed = pd.to_datetime(value, errors='coerce')
+    return None if pd.isna(parsed) else parsed.date()
+
+
+def get_duration(duration, start_date, end_date):
+    """Duration in days: the model's stated Duration if it is a whole number, otherwise
+    computed from the dates counting both the start and end day."""
+    if isinstance(duration, int) and not isinstance(duration, bool):
+        return duration
+    if isinstance(duration, str) and duration.strip().isdigit():
+        return int(duration.strip())
+    if start_date is not None and end_date is not None:
+        return (end_date - start_date).days + 1
+    return None

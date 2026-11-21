@@ -856,51 +856,40 @@ class LlacieDatabase(object):
         
         self.conn.commit()
     
-    def replace_antibiotic_episode_labels(self, ep_label_strategy, row_values, labels_dict):
+    def replace_antibiotic_labels(self, ep_label_strategy, row_values, label_rows):
+        """Replaces this strategy's antibiotic_labels rows for one episode with `label_rows`,
+        a list of dicts with the drug columns (drug_name, drug_name_raw, start_date, end_date,
+        duration_days, is_current). Human-annotated rows are left alone."""
         if ep_label_strategy.task.output_type != out_t.EPISODE_LABEL:
             raise RuntimeError("Only strategies for creating episode labels are allowed.")
-        
+
         params = {
-            "episode_id": row_values.episode_id,
+            "episode_id": int(row_values.episode_id),
             "strategy_id": ep_label_strategy.id,
-            "task_name": ep_label_strategy.task.name,
-            "note_feature_id": row_values.note_feature_id,
+            "note_feature_id": int(row_values.note_feature_id),
             "task_id": ep_label_strategy.task_id
         }
         delete_labels_sql = text(f"""
-            DELETE FROM "{self.prefix}episode_labels" 
+            DELETE FROM "{self.prefix}antibiotic_labels"
                 WHERE "FK_episode_id" = :episode_id
                     AND "FK_strategy_id" = :strategy_id
-                    AND "task_name" = :task_name
                     AND "FK_human_annotator" IS NULL
             """)
         self.conn.execute(delete_labels_sql, params)
-        # print('labels_dict')
-        # print(labels_dict)
-        num = 0
-        existing_label_name = []
-        for label_name, label_value in labels_dict:
-            if label_name not in existing_label_name:
-                existing_label_name.append(label_name)
-            else:
-                continue
-            num+=1
-            params.update({
-                "label_name": label_name,
-                "label_value": label_value,
-                "line_number":num
-            })
-            insert_label_sql = text(f"""
-                INSERT INTO "{self.prefix}episode_labels" ("FK_note_feature_id", 
-                    "FK_episode_id", "FK_strategy_id", "FK_task_id", "task_name", 
-                    "label_name", "label_value", "line_number", "FK_human_annotator")
-                VALUES (:note_feature_id, :episode_id, :strategy_id, :task_id, :task_name,
-                    :label_name,:label_value , :line_number , NULL)
-                """)
-            self.conn.execute(insert_label_sql, params)
-        
-            self.conn.commit()
 
+        insert_label_sql = text(f"""
+            INSERT INTO "{self.prefix}antibiotic_labels" ("FK_episode_id",
+                "FK_note_feature_id", "FK_strategy_id", "FK_task_id", "FK_human_annotator",
+                "drug_name", "drug_name_raw", "start_date", "end_date", "duration_days",
+                "is_current")
+            VALUES (:episode_id, :note_feature_id, :strategy_id, :task_id, NULL,
+                :drug_name, :drug_name_raw, :start_date, :end_date, :duration_days,
+                :is_current)
+            """)
+        for label_row in label_rows:
+            self.conn.execute(insert_label_sql, {**params, **label_row})
+
+        self.conn.commit()
 
 
     #############################
