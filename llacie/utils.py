@@ -34,17 +34,31 @@ DEFAULT_FAILURES_FILE = "logs/failed_notes.csv"
 FAILURES_COLUMNS = ["timestamp", "strategy", "note_id", "episode_id", "note_feature_id", "reason"]
 
 def record_failure(config, strategy_name, reason, note_id=None, episode_id=None,
-        note_feature_id=None):
+        note_feature_id=None, response=None):
     """Warns about a note/episode a strategy could not process and appends it to the failures
     CSV (FAILURES_FILE in .env, default logs/failed_notes.csv), so failures can be reviewed
-    after the run."""
+    after the run.
+
+    If given, `response` (e.g. the model's raw reply) is saved to its own text file in a
+    failed_responses/ folder next to the CSV, and the reason names that file."""
     ids = ", ".join(f"{k} {v}" for k, v in [("note", note_id), ("episode", episode_id),
         ("note feature", note_feature_id)] if v is not None)
-    echo_warn(f"Failed ({ids}): {reason}")
 
     failures_file = (config.get('FAILURES_FILE') if config is not None else None) \
         or DEFAULT_FAILURES_FILE
     if path.dirname(failures_file): makedirs(path.dirname(failures_file), exist_ok=True)
+    if response is not None:
+        responses_dir = path.join(path.dirname(failures_file), "failed_responses")
+        makedirs(responses_dir, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        which = "_".join(f"{k}{v}" for k, v in [("note", note_id), ("episode", episode_id)]
+            if v is not None) or "unknown"
+        response_file = path.join(responses_dir, f"{strategy_name}.{which}.{stamp}.txt")
+        with open(response_file, 'w') as f:
+            f.write(str(response))
+        reason = f"{reason} (raw response: {response_file})"
+    echo_warn(f"Failed ({ids}): {reason}")
+
     is_new = not path.isfile(failures_file) or path.getsize(failures_file) == 0
     with open(failures_file, 'a', newline='') as f:
         writer = csv.writer(f)

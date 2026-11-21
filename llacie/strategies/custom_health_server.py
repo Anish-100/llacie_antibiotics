@@ -92,7 +92,7 @@ class AbstractUciHealthStrategy(AbstractStrategy):
                 output = json.loads(strip_code_fence(response))
             except (json.JSONDecodeError, TypeError):
                 record_failure(self.config, self.name, "Could not parse JSON response",
-                    note_id=note_id)
+                    note_id=note_id, response=response)
                 continue
 
             if isinstance(output, list):
@@ -101,7 +101,7 @@ class AbstractUciHealthStrategy(AbstractStrategy):
                 self.db.upsert_note_feature(note_id, self, output_raw, feature, row.id, runtime)
             else:
                 record_failure(self.config, self.name, "LLM output is not a JSON list",
-                    note_id=note_id)
+                    note_id=note_id, response=response)
 
 
     def run(self, all_note_ids, max_note_ids=None, batch_size=None, dry_run=False):
