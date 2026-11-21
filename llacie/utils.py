@@ -1,5 +1,7 @@
+import csv
 import random
-from os import path
+from datetime import datetime
+from os import path, makedirs
 from click import echo, secho, get_current_context
 from collections import namedtuple
 
@@ -27,6 +29,28 @@ def echo_warn(message):
 
 def echo_info(message):
     secho(message, fg='green', err=True, color=_force_color_in_workers())
+
+DEFAULT_FAILURES_FILE = "logs/failed_notes.csv"
+FAILURES_COLUMNS = ["timestamp", "strategy", "note_id", "episode_id", "note_feature_id", "reason"]
+
+def record_failure(config, strategy_name, reason, note_id=None, episode_id=None,
+        note_feature_id=None):
+    """Warns about a note/episode a strategy could not process and appends it to the failures
+    CSV (FAILURES_FILE in .env, default logs/failed_notes.csv), so failures can be reviewed
+    after the run."""
+    ids = ", ".join(f"{k} {v}" for k, v in [("note", note_id), ("episode", episode_id),
+        ("note feature", note_feature_id)] if v is not None)
+    echo_warn(f"Failed ({ids}): {reason}")
+
+    failures_file = (config.get('FAILURES_FILE') if config is not None else None) \
+        or DEFAULT_FAILURES_FILE
+    if path.dirname(failures_file): makedirs(path.dirname(failures_file), exist_ok=True)
+    is_new = not path.isfile(failures_file) or path.getsize(failures_file) == 0
+    with open(failures_file, 'a', newline='') as f:
+        writer = csv.writer(f)
+        if is_new: writer.writerow(FAILURES_COLUMNS)
+        writer.writerow([datetime.now().isoformat(timespec='seconds'), strategy_name,
+            note_id, episode_id, note_feature_id, reason])
 
 def strtobool(val):
     """Convert a string representation of truth to true (1) or false (0).

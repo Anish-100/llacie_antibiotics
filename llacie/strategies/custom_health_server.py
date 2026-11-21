@@ -4,7 +4,7 @@ from textwrap import dedent
 
 from .abstract import AbstractStrategy
 from ..inference.uci_health_server import UCI_HEALTH, api_model_name, api_model_label
-from ..utils import echo_warn, echo_info
+from ..utils import echo_warn, echo_info, record_failure
 
 
 class AbstractUciHealthStrategy(AbstractStrategy):
@@ -76,15 +76,17 @@ class AbstractUciHealthStrategy(AbstractStrategy):
             try:
                 output = json.loads(response)
             except (json.JSONDecodeError, TypeError):
-                echo_warn(f"Could not parse JSON response for note id {note_id}")
-                output = None
+                record_failure(self.config, self.name, "Could not parse JSON response",
+                    note_id=note_id)
+                continue
 
-            if output is not None and isinstance(output, list):
+            if isinstance(output, list):
                 feature = "\n".join(output) if output and isinstance(output[0], str) else json.dumps(output)
                 output_raw = json.dumps(output)
                 self.db.upsert_note_feature(note_id, self, output_raw, feature, row.id, runtime)
             else:
-                echo_warn(f"No valid LLM output for note id {note_id}")
+                record_failure(self.config, self.name, "LLM output is not a JSON list",
+                    note_id=note_id)
 
 
     def run(self, all_note_ids, max_note_ids=None, batch_size=None, dry_run=False):

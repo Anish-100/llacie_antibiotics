@@ -4,7 +4,7 @@ import json
 import re
 from ...abstract import AbstractStrategy
 from ....tasks.episode_label import AntibioticsEpisodeLabelTask
-from ....utils import chunker, echo_info
+from ....utils import chunker, echo_info, record_failure
 from ....database.query_db import query
 SECS_IN_24H = 60 * 60 * 24
 
@@ -34,9 +34,20 @@ class AbstractAntibioticsStrategy(AbstractStrategy):
             df = self.db.get_earliest_notes_with_feature(ep_ids, self.feat_strat, SECS_IN_24H)
 
             # Some episodes may not have any notes with the required feature
-            fail_count += len(ep_ids) - len(df)
+            for ep_id in sorted(set(int(e) for e in ep_ids) - set(df['episode_id'].astype(int))):
+                fail_count += 1
+                record_failure(self.config, self.name,
+                    f"No note with a {self.feat_strat.name} feature", episode_id=ep_id)
             for _, row in df.iterrows():
-                label_rows = [to_label_row(item) for item in json.loads(row['feature_value'])]
+                try:
+                    label_rows = [to_label_row(item) for item in json.loads(row['feature_value'])]
+                except (json.JSONDecodeError, TypeError, AttributeError) as e:
+                    # Not a JSON list of drug objects; leave the episode unfinished
+                    fail_count += 1
+                    record_failure(self.config, self.name, f"Could not read drug list: {e}",
+                        note_id=int(row['id']), episode_id=int(row['episode_id']),
+                        note_feature_id=int(row['note_feature_id']))
+                    continue
                 if len(label_rows) == 0:
                     # No antibiotics found: one empty row marks the episode as finished
                     label_rows = [empty_label_row()]
