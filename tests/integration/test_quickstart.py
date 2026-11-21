@@ -18,7 +18,7 @@ DEFAULT_TIMEOUT = 60
 LONG_TIMEOUT = 600 
 
 # Expected counts after the various steps of the pipeline are completed
-TABLE_COUNT = 9
+TABLE_COUNT = 10  # includes antibiotic_labels
 NOTE_COUNT = 100
 SECTION_COUNT = 100
 SHORT_FEATURE_COUNT = 2
