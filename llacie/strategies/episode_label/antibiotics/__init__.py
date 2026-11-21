@@ -77,7 +77,18 @@ def to_label_row(item):
         "start_date": start_date,
         "end_date": end_date,
         "duration_days": get_duration(item.get('Duration'), start_date, end_date),
+        "is_current": parse_current(item.get('Current')),
     }
+
+
+def parse_current(value):
+    """True/False for the model's Current answer, or None when the note does not say."""
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower() if value is not None else ''
+    if text in ('true', 'yes', 'y', '1'): return True
+    if text in ('false', 'no', 'n', '0'): return False
+    return None
 
 
 def parse_date(value):

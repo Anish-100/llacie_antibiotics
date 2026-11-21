@@ -54,7 +54,9 @@ Return a JSON list of dicts. Each dict must follow this format:
   "Frequency": str,   // e.g., BID, daily, q8h — leave empty if unknown
   "Duration": int,    // Duration in days — leave empty if unknown
   "Start date": str,  // MM/DD/YYYY — leave empty if unknown
-  "End date": str     // MM/DD/YYYY — leave empty if unknown
+  "End date": str,    // MM/DD/YYYY — leave empty if unknown
+  "Current": bool     // true if the patient was still taking it when admitted, false if
+                      // it was stopped before admission — leave empty if the note does not say
 )
 
 If a value is unknown, leave it empty. Do not guess.
