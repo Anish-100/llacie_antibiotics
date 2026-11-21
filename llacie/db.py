@@ -844,6 +844,59 @@ class LlacieDatabase(object):
         num_drugs = int(long_df["drug_name_raw"].notna().sum())
         echo_info(f"{num_drugs} antibiotic labels imported for {len(rows_by_episode)} episodes.")
 
+    DEFAULT_RELEVANCE_DAYS = 30
+
+    def get_antibiotic_labels_with_relevance(self, task, strategy=None, human_username=None,
+            days=DEFAULT_RELEVANCE_DAYS):
+        """Returns antibiotic_labels rows for one strategy (or one human annotator), skipping
+        "none found" rows, with a `relevance` column:
+
+        - `start_date` on or after the admission date (started during admission) ->
+          not_relevant, whatever else is known
+        - `is_current` true -> relevant; false -> not_relevant
+        - otherwise, by days from `end_date` to the episode's admission (`startDTS`):
+          at most `days` (or ending after admission) -> relevant, more -> not_relevant
+        - no `is_current` and no `end_date` (or no `startDTS`) -> not_relevant"""
+        if (strategy is None) == (human_username is None):
+            raise RuntimeError("Give exactly one of a strategy or a human annotator")
+        params = {
+            "task_id": int(self.get_or_register_task(task).id),
+            "days": int(days),
+            "strategy_id": strategy.id if strategy is not None else None,
+            "human_username": human_username
+        }
+        source_sql = ('al."FK_strategy_id" = :strategy_id AND al."FK_human_annotator" IS NULL'
+            if strategy is not None else
+            'al."FK_strategy_id" IS NULL AND al."FK_human_annotator" = :human_username')
+        select_sql = text(f"""
+            SELECT al."id", al."FK_episode_id", e."startDTS", al."FK_strategy_id",
+                    al."FK_human_annotator", al."FK_note_feature_id",
+                    al."drug_name", al."drug_name_raw", al."start_date", al."end_date",
+                    al."duration_days", al."is_current",
+                    (e."startDTS"::date - al."end_date") AS "days_ended_before_admission",
+                    CASE
+                        -- Started during this admission (on or after the admission date):
+                        -- not a pre-admission antibiotic, so never relevant to our case
+                        WHEN al."start_date" >= e."startDTS"::date THEN 'not_relevant'
+                        WHEN al."is_current" IS TRUE THEN 'relevant'
+                        WHEN al."is_current" IS NULL
+                            AND e."startDTS"::date - al."end_date" <= :days THEN 'relevant'
+                        ELSE 'not_relevant'
+                    END AS "relevance"
+                FROM "{self.prefix}{task.label_table}" AS al
+                JOIN "{self.ep_table}" AS e ON e."id" = al."FK_episode_id"
+                WHERE al."FK_task_id" = :task_id
+                    AND al."drug_name_raw" IS NOT NULL
+                    AND {source_sql}
+                ORDER BY al."FK_episode_id", al."id"
+            """)
+        df = pd.read_sql_query(select_sql, self.conn, params=params)
+        # Keep whole-number columns as integers even when some values are missing
+        int_cols = ["FK_strategy_id", "FK_note_feature_id", "duration_days",
+            "days_ended_before_admission"]
+        return df.astype({col: "Int64" for col in int_cols})
+
+
     def replace_episode_labels(self, ep_label_strategy, row_values, labels_dict):
         if ep_label_strategy.task.output_type != out_t.EPISODE_LABEL:
             raise RuntimeError("Only strategies for creating episode labels are allowed.")

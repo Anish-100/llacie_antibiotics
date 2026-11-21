@@ -197,6 +197,32 @@ def import_episode_labels(app, episode_label_task, input_xlsx, sheet_name=None,
     app.db.import_episode_labels(episode_label_task, input_xlsx, sheet_name, human_username)
 
 
+@episode_labels.command(name="export")
+@click.option('-n', '--episode-label-task', default=None, type=str, 
+    help="Filter to only strategies for this episode labelling task name.")
+@click.option('-s', '--strategy-name', default=None, type=str, 
+    help="Filter to strategies matching this name. Partial matches using shell-style globs are allowed.")
+@click.option('-u', '--human-username', default=None, type=str, 
+    help="Export this human annotator's labels instead of a strategy's (needs -n).")
+@click.option('-D', '--days', default=None, type=int, 
+    help="Relevance window: a drug with no current/stopped answer is relevant if it ended "
+    "at most this many days before admission. Defaults to RELEVANCE_DAYS in .env, or 30.")
+@click.option('-r', '--relevant-only', default=False, is_flag=True, 
+    help="Only export labels judged relevant.")
+@click.option('-o', '--output', default='-', type=click.File('w'), 
+    help="CSV file to write. Defaults to standard output.")
+@click.pass_obj
+def export_episode_labels(app, episode_label_task=None, strategy_name=None,
+        human_username=None, days=None, relevant_only=False, output=None):
+    """Export antibiotics labels with a relevance judgement to CSV.
+
+    Relevance per drug: started on or after the admission date -> not relevant;
+    otherwise current -> relevant, stopped before admission -> not relevant,
+    otherwise relevant only if it ended within the relevance window before admission
+    (no end date counts as not relevant). Episodes with no antibiotics are left out."""
+    app.export_episode_labels(output, episode_label_task, strategy_name, human_username,
+        days, relevant_only)
+
 @episode_labels.command(name="evaluate")
 @click.option('-n', '--episode-label-task', default=None, type=str, 
     help="Filter to only strategies for this episode labelling task name.")

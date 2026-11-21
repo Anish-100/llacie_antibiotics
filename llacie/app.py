@@ -233,6 +233,38 @@ class App(object):
         echo(conf_mat)
 
 
+    def export_episode_labels(self, output, episode_label_task=None, strategy_name=None,
+            human_username=None, days=None, relevant_only=False):
+        if human_username is not None:
+            strategies = find_strategies(output_type=out_t.EPISODE_LABEL,
+                task=episode_label_task)
+            if len(strategies) == 0:
+                return echo_err("Error: No episode labelling task by that name was found.")
+            task, strategy = strategies[0].task, None
+        else:
+            strategies = find_strategies(output_type=out_t.EPISODE_LABEL,
+                task=episode_label_task, name_glob=strategy_name)
+            if not only_one_strategy(strategies, "Episode labels"): return
+            strategy = strategies[0](self.db, self.config)
+            task = strategy.task
+        if task.label_table != "antibiotic_labels":
+            return echo_err(f"Error: export only supports antibiotics tasks for now, "
+                f"not {task.name}")
+
+        if days is None:
+            days = int(self.config.get("RELEVANCE_DAYS") or self.db.DEFAULT_RELEVANCE_DAYS)
+        df = self.db.get_antibiotic_labels_with_relevance(task, strategy, human_username,
+            days)
+        if relevant_only:
+            df = df[df["relevance"] == "relevant"]
+        df.to_csv(output, index=False)
+        counts = df["relevance"].value_counts().to_dict()
+        source = strategy.name if strategy is not None else f"annotator {human_username}"
+        echo_info(f"Exported {len(df)} labels from {source} for "
+            f"{df['FK_episode_id'].nunique()} episodes (relevance window {days} days): "
+            + ", ".join(f"{n} {k}" for k, n in sorted(counts.items())))
+
+
     def evaluate_episode_label_strategies(self, episode_label_task=None, strategy_name=None,
             human_username=None, other_human=None, also_labeled_by=None, bootstrap_samples=None):
         strategies = find_strategies(output_type=out_t.EPISODE_LABEL, task=episode_label_task,
