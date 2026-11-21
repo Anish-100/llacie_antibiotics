@@ -200,6 +200,8 @@ ALTER TABLE "{{prefix}}episode_labels"
     ON UPDATE RESTRICT;
 
 -- One row per antibiotic course found in an episode, by a strategy or a human annotator.
+-- An episode where no antibiotics were found gets one row with all drug columns NULL, so it
+-- still counts as finished.
 -- Relevance is not stored: derive it from is_current / start_date / end_date against the
 -- episode's "startDTS", so the rule can change without re-running extraction.
 CREATE TABLE "{{prefix}}antibiotic_labels" (
@@ -210,7 +212,7 @@ CREATE TABLE "{{prefix}}antibiotic_labels" (
     "FK_task_id"            BIGINT NOT NULL,
     "FK_human_annotator"    VARCHAR(255),
     "drug_name"             TEXT,
-    "drug_name_raw"         TEXT NOT NULL,
+    "drug_name_raw"         TEXT,
     "start_date"            DATE,
     "end_date"              DATE,
     "duration_days"         INTEGER,
