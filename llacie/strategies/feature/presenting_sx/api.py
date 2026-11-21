@@ -1,17 +1,19 @@
 from textwrap import dedent
 
-from ...custom_health_server import AbstractUciHealthStrategy
+from ...custom_health_server import AbstractUciHealthStrategy, api_model_label
 from ...section.hpi_short.regex_temp import ShortHPISectionRegexStrategy
 from ....tasks.feature import PresentingSymptomsFeatureTask
 
-class PresentingSxFeatureGPTOSS120BStrategy(AbstractUciHealthStrategy):
+class PresentingSxFeatureApiStrategy(AbstractUciHealthStrategy):
     """\
-    Attempts to extract the `presenting_sx` feature using GPT OSS 120B model,
+    Extracts the `presenting_sx` feature with whichever model the API server is configured for
+    (MODEL_NAME in .env). The model is part of the strategy name, so each model's results are
+    stored separately.
 
     Also uses the `hpi_short` sections created by the section.hpi_short.regex strategy.
     """
     task = PresentingSymptomsFeatureTask
-    name = "feature.presenting_sx.GPT_OSS_120B"
+    name = f"feature.presenting_sx.api.{api_model_label()}"
     version = "0.0.1"
     prereq_tasks = []
 
@@ -22,8 +24,6 @@ class PresentingSxFeatureGPTOSS120BStrategy(AbstractUciHealthStrategy):
     #     "top_p": 0.8,
     #     "repetition_penalty": 1.05
     # }
-
-    NICE_MODEL_NAME = "GPT-OSS 120B"
 
     LLM_SYSTEM_PROMPT = dedent("""\
         You are a clinical researcher that reads medical charts and answers questions about them. 
