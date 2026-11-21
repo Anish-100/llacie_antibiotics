@@ -1,10 +1,20 @@
 import json
+import re
 
 from textwrap import dedent
 
 from .abstract import AbstractStrategy
 from ..inference.uci_health_server import UCI_HEALTH, api_model_name, api_model_label
 from ..utils import echo_warn, echo_info, record_failure
+
+
+def strip_code_fence(response):
+    """Some models (e.g. GLM-5.3-Flash) wrap their JSON in a markdown code fence such as
+    ```json ... ```; returns the text inside it, or the response unchanged."""
+    if not isinstance(response, str):
+        return response
+    match = re.fullmatch(r'\s*```[A-Za-z]*\s*\n?(.*?)\n?\s*```\s*', response, re.DOTALL)
+    return match.group(1) if match else response
 
 
 class AbstractUciHealthStrategy(AbstractStrategy):
@@ -79,7 +89,7 @@ class AbstractUciHealthStrategy(AbstractStrategy):
             runtime = self.stop_timer()
 
             try:
-                output = json.loads(response)
+                output = json.loads(strip_code_fence(response))
             except (json.JSONDecodeError, TypeError):
                 record_failure(self.config, self.name, "Could not parse JSON response",
                     note_id=note_id)
