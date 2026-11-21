@@ -1,4 +1,4 @@
-FROM python:3.11-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 # Some steps are specific to the linux/arm64 platform
 ARG TARGETPLATFORM
@@ -30,7 +30,7 @@ RUN useradd -m -u 1000 -s /bin/bash llacie
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 10 --slave /usr/bin/g++ g++ /usr/bin/g++-12
 
 # Install python build tools as root
-RUN pip install --upgrade pip setuptools wheel flit
+RUN pip install --upgrade pip setuptools wheel
 
 # Setting up llacie itself
 WORKDIR /app
@@ -53,13 +53,10 @@ WORKDIR /home/llacie/.cache/outlines
 WORKDIR /app
 
 # Install the llacie package in editable mode (this installs all dependencies from pyproject.toml)
-# For TARGETPLATFORM=linux/arm64, use abetlen's prebuilt llama-cpp-python wheel 
-#    as it doesn't compile correctly from source
-RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        pip install --user -e . --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu; \
-    else \
-        pip install --user -e .; \
-    fi
+# Use abetlen's prebuilt llama-cpp-python wheels (PyPI only has an sdist, which doesn't compile
+#    correctly on linux/arm64). --prefer-binary stops pip choosing a newer sdist over the wheel.
+RUN pip install --user --prefer-binary -e . \
+        --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 
 # Set the default command to show help
 CMD ["llacie", "--help"]

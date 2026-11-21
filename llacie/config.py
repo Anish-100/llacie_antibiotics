@@ -72,7 +72,8 @@ class Config(UserDict):
         if pg_user is None or pg_password is None:
             raise ConfigError("Could not find postgres login information")
         
-        return f"postgresql://{pg_user}:{pg_password}@{pg_host}/{pg_dbname}"
+        # Name the driver explicitly: SQLAlchemy 2.1+ defaults bare `postgresql://` to psycopg 3
+        return f"postgresql+psycopg2://{pg_user}:{pg_password}@{pg_host}/{pg_dbname}"
     
 
     def _get_edw_connection_string(self):

@@ -30,4 +30,6 @@ include
 lib
 share
 /.*
+!.python-version
+!.github/
 **/llacie/physionet.org

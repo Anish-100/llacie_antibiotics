@@ -51,7 +51,7 @@ $ llacie episode-labels evaluate
 
 ## Installing from PyPI
 
-You can install the package directly [from PyPI](https://pypi.org/project/llacie/), which requires Python ≥3.11.
+You can install the package directly [from PyPI](https://pypi.org/project/llacie/), which requires Python ≥3.11 (3.14 is recommended).
 
 ```bash
 $ pip install llacie
@@ -67,43 +67,32 @@ The base package runs LLMs using [llama-cpp-python](https://pypi.org/project/lla
 
 ## Installing a development environment
 
-### Using conda
+### Using uv
 
-Create or activate a conda environment that includes Python 3.11 and the `psycopg2` package, e.g.
-
-```bash
-$ conda create -n llacie python=3.11 psycopg2  # First time only
-$ conda activate llacie                        # Subsequent times
-(llacie) $
-```
-
-We develop on this package in a `venv` (aka virtualenv) within this repository, as this allows the package to be installed in `--editable` mode, so we can work on it and use it simultaneously.
+We use [uv](https://docs.astral.sh/uv/) to manage the Python version, the virtualenv, and dependencies. [Install uv](https://docs.astral.sh/uv/getting-started/installation/), then from the repo root run:
 
 ```bash
-(llacie) $ python3 -m venv .venv
-(llacie) $ . .venv/bin/activate
+$ uv sync
 ```
 
-If that worked, the shell prompt is now also prefixed with `(.venv)`. We next install the repo itself as a local module in this virtualenv. This will also automatically download and install dependencies enumerated in `pyproject.toml`.
+This creates a `.venv` in the repo using the Python version in `.python-version`, currently 3.14 (downloading it if needed), and installs the package in editable mode along with the `dev` dependency group (test and lint tools). Exact versions are pinned in `uv.lock`, so everyone gets the same environment. Python 3.11 and newer are all supported; to use a different version, run e.g. `uv sync --python 3.11`.
 
-> **Important**: Installing dependencies requires a C/C++ compiler. If this step fails on the [MGB Linux cluster](https://rc.partners.org/kb/computational-resources/faq-eristwo?article=1553), run `module load gcc/9.3.0` and try again.
-
-```bash
-(.venv) (llacie) $ pip install -e .[dev]
-```
+On Linux, `llama-cpp-python` is installed from its prebuilt CPU wheel index (configured in `pyproject.toml`). On macOS it is compiled from source, which needs the Xcode command line tools (`xcode-select --install`) and takes a few minutes the first time.
 
 If everything worked, you should be able to see the main menu by running:
 
 ```bash
-(.venv) (llacie) $ llacie
+$ uv run llacie
 ```
+
+Alternatively, activate the venv with `. .venv/bin/activate` and run `llacie` directly. To add a dependency, use `uv add <package>` (or `uv add --group dev <package>` for dev-only tools), which updates both `pyproject.toml` and `uv.lock`.
 
 ### Running tests
 
 The test suite is in `tests/`. Currently, this runs integration tests based on the Quickstart demo, checking the command outputs and that database state is updated appropriately after each step. Common test suite invocations can be run with `make`:
 
 ```bash
-make test-install
+make install
 make test           # Runs all of the tests
 make test-fast      # Runs only the quicker tests that don't require LLM inference
 ```
@@ -112,11 +101,11 @@ We automatically run the test suite for every commit pushed to this repo using [
 
 ### Building the package
 
-The package is Python-only and can be built using [flit](https://flit.pypa.io/en/stable/).
+The package is Python-only and is built with [hatchling](https://hatch.pypa.io/latest/) via uv.
 
 ```bash
-$ flit build
-$ flit publish
+$ uv build
+$ uv publish
 ```
 
 ## Citation 
