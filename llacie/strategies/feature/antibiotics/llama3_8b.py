@@ -1,7 +1,7 @@
 from textwrap import dedent
 
 from ...abstract_vllm_or_lcp import AbstractVllmOrLcpStrategy
-from ...section.medicines.spacy import AntibioticsSpacyStrategy
+from ...section.medicines.all_sections import AntibioticsNoStrategy
 from ....tasks.feature import AntibioticsFeatureTask
 
 class AntibioticsFeatureLlama3Instruct8BStrategy(AbstractVllmOrLcpStrategy):
@@ -19,7 +19,7 @@ class AntibioticsFeatureLlama3Instruct8BStrategy(AbstractVllmOrLcpStrategy):
     version = "0.0.1"
     prereq_tasks = []
 
-    SECTION_STRATEGY_CLASS = AntibioticsSpacyStrategy
+    SECTION_STRATEGY_CLASS = AntibioticsNoStrategy
 
     # HuggingFace respository ID for the full PyTorch/Transformers model, which vllm uses
     MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'

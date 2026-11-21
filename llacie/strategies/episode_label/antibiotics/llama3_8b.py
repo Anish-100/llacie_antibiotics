@@ -1,5 +1,5 @@
 from . import AbstractAntibioticsStrategy
-from ...feature.antibiotics.llama3_8b import AntibioticsSpacyStrategy 
+from ...feature.antibiotics.llama3_8b import AntibioticsFeatureLlama3Instruct8BStrategy
 from ....tasks.episode_label import AntibioticsEpisodeLabelTask
 
 class AntibioticsLlama3Instruct8BVllmStrategy(
@@ -18,4 +18,4 @@ class AntibioticsLlama3Instruct8BVllmStrategy(
 
     def __init__(self, db, config, **options):
         super().__init__(db, config, **options)
-        self.feat_strat = AntibioticsSpacyStrategy(db, config, **options)
+        self.feat_strat = AntibioticsFeatureLlama3Instruct8BStrategy(db, config, **options)

@@ -1,14 +1,5 @@
-# All the medspacy categories for reference
-# {'problem_list', 'other', 'neurological', 'history_of_present_illness', 'allergies', 
-# 'chief_complaint', 'siganture', 'medications', 'diagnoses', 'social_history', 'labs_and_studies', 'patient_education',
-#  'observation_and_plan', 'patient_instructions', 'imaging', 'hospital_course',
-# 'reason_for_examination', 'signature', 'addendum', 'comments', 'family_history', 'allergy',
-#  'past_medical_history', 'physical_exam'}
 import re
 from tqdm import tqdm
-import medspacy
-from medspacy.section_detection import Sectionizer, SectionRule
-from medspacy.target_matcher import TargetMatcher, TargetRule
 from ...abstract import AbstractStrategy
 from ....tasks.section import AntibioticsTask
 from ....utils import chunker, echo_info
@@ -17,7 +8,8 @@ from ....utils import chunker, echo_info
 
 class AntibioticsNoStrategy(AbstractStrategy):
     """\
-    Attempts to extract the all relevant antibiotic sections using medspaCy's sectionizer
+    Uses the entire (lightly cleaned) note as the section, so the feature strategy sees the
+    whole note rather than selected sections.
     """
     task = AntibioticsTask
     name = "section.antibiotics.all_sections"
@@ -25,9 +17,6 @@ class AntibioticsNoStrategy(AbstractStrategy):
     BATCH_SIZE = 1000
 
     prereq_tasks = []
-
-    _nlp = None
-
 
 
     @staticmethod
