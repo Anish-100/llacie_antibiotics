@@ -1,0 +1,55 @@
+patientEncounterID,startDTS,DateOfServiceDTS,NoteStatusDSC,NoteID,note_text,admission_date,drug_name,start_date,end_date,duration,current
+9000000001,2024-06-09 15:17:00,2024-06-09 18:40:00,Signed,8000000001,"HOSPITAL MEDICINE ADMISSION NOTE
+CHIEF COMPLAINT: Right flank pain, fever
+
+HPI: 65F with recurrent UTIs. Started nitrofurantoin 100 mg PO BID on 06/03/2024 for a 5-day course, completed 06/07/2024. Now with fever, flank pain.
+
+ASSESSMENT/PLAN: Pyelonephritis. Start ceftriaxone 1 g IV daily.",06/09/2024,nitrofurantoin,06/03/2024,06/07/2024,5,false
+9000000002,2024-03-20 09:05:00,2024-03-20 11:30:00,Signed,8000000002,"ADMISSION H&P
+CC: Cough, dyspnea
+
+HPI: 72M with COPD. Urgent care prescribed azithromycin 500 mg daily x5 days starting 03/14/2024, finished 03/18/2024. Also took amoxicillin, which he is still taking, since 03/17/2024.
+
+A/P: CAP, start ceftriaxone + azithromycin.",03/20/2024,azithromycin,03/14/2024,03/18/2024,5,false
+9000000002,2024-03-20 09:05:00,2024-03-20 11:30:00,Signed,8000000002,"ADMISSION H&P
+CC: Cough, dyspnea
+
+HPI: 72M with COPD. Urgent care prescribed azithromycin 500 mg daily x5 days starting 03/14/2024, finished 03/18/2024. Also took amoxicillin, which he is still taking, since 03/17/2024.
+
+A/P: CAP, start ceftriaxone + azithromycin.",03/20/2024,amoxicillin,03/17/2024,,,true
+9000000003,2024-01-11 22:48:00,2024-01-12 01:15:00,Signed,8000000003,"ADMISSION NOTE
+CC: Fall, weakness
+
+HPI: 81F found down at home. No recent antibiotics. Denies fevers.
+
+A/P: Mechanical fall, rule out infection.",01/11/2024,,,,,
+9000000004,2023-11-30 14:00:00,2023-11-30 16:20:00,Signed,8000000004,"ADMISSION H&P
+CC: Fever, cellulitis
+
+HPI: 54M. Cephalexin 500 mg QID 10/01/2023 to 10/10/2023, then cephalexin again 11/20/2023 to present for recurrent leg cellulitis. Also received colistin inhalation in October (dates unknown).
+
+A/P: Failed outpatient therapy, start vancomycin.",11/30/2023,cephalexin,10/01/2023,10/10/2023,10,false
+9000000004,2023-11-30 14:00:00,2023-11-30 16:20:00,Signed,8000000004,"ADMISSION H&P
+CC: Fever, cellulitis
+
+HPI: 54M. Cephalexin 500 mg QID 10/01/2023 to 10/10/2023, then cephalexin again 11/20/2023 to present for recurrent leg cellulitis. Also received colistin inhalation in October (dates unknown).
+
+A/P: Failed outpatient therapy, start vancomycin.",11/30/2023,cephalexin,11/20/2023,,,true
+9000000004,2023-11-30 14:00:00,2023-11-30 16:20:00,Signed,8000000004,"ADMISSION H&P
+CC: Fever, cellulitis
+
+HPI: 54M. Cephalexin 500 mg QID 10/01/2023 to 10/10/2023, then cephalexin again 11/20/2023 to present for recurrent leg cellulitis. Also received colistin inhalation in October (dates unknown).
+
+A/P: Failed outpatient therapy, start vancomycin.",11/30/2023,colistin,,,,
+9000000005,2024-08-02 07:30:00,2024-08-02 09:10:00,Addendum,8000000006,"ADMISSION H&P
+CC: Diarrhea
+
+HPI: 60F. Took ciprofloxacin some time last year; no dates. Doxycycline 100 mg BID for 7 days, ended about two months ago.
+
+A/P: C. diff testing.",08/02/2024,ciprofloxacin,,,,
+9000000005,2024-08-02 07:30:00,2024-08-02 09:10:00,Addendum,8000000006,"ADMISSION H&P
+CC: Diarrhea
+
+HPI: 60F. Took ciprofloxacin some time last year; no dates. Doxycycline 100 mg BID for 7 days, ended about two months ago.
+
+A/P: C. diff testing.",08/02/2024,doxycycline,,06/01/2024,7,false
