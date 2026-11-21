@@ -24,12 +24,10 @@ class Vocab:
         self.from_file = path.join(PACKAGE_DIR, "vocabs", from_file)
         cache_dir = platformdirs.user_cache_dir("llacie", "tpaklab")
         self.cache_file = path.join(cache_dir, "vocabs", f"{from_file}.pkl")
-        echo_info(self.from_file)
         if self._load_from_cache():
             return
         elif self.from_file.endswith(".xlsx") or self.from_file.endswith(".xls"):
             echo_info(f"Parsing and caching vocabulary in vocabs/{from_file}")
-            print('FILE',self.from_file)
             if path.basename(self.from_file) == 'cleaned_antibiotics.xlsx':
                 self._parse_df_antibiotics(pd.read_excel(self.from_file,sheet_name=sheet_name))
             else:
@@ -110,11 +108,8 @@ class Vocab:
 
 
     def _parse_df_antibiotics(self, vocab_df):
-        print('Antibiotics')
-        print(vocab_df)
         vocab_df = vocab_df.dropna(subset=['Drug Name']).copy()
         for _, row in vocab_df.iterrows():
-            print(row['Drug Name'])
             self._add_antibiotic_terms(row['Drug Name'].strip())
         self._save_to_cache()
 

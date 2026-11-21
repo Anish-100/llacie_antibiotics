@@ -10,7 +10,7 @@ class AntibioticsEpisodeLabelApiStrategy(
     for the model currently set in MODEL_NAME.
     """
     task = AntibioticsEpisodeLabelTask
-    name = f"episode_label.antibiotics_ep1.api.{api_model_label()}"
+    name = f"episode_label.antibiotics_eplab1.api.{api_model_label()}"
     version = "0.0.1"
     prereq_tasks = []
 
