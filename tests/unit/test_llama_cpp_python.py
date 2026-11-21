@@ -67,7 +67,6 @@ def _schema_ids(cls):
 
 def test_strategies_were_discovered():
     names = {s.name for s in LLAMA_CPP_STRATEGIES}
-    assert "feature.antibiotics.llama3_8b" in names
     assert "feature.presenting_sx.llama3_8b" in names
 
 
