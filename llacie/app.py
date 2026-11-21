@@ -11,6 +11,7 @@ from .edw import EDWDatabase
 from .strategies import find_strategies
 from .tasks.abstract import TaskOutputType as out_t
 from .evaluate import ConfusionMatrix
+from .evaluate_antibiotics import evaluate_antibiotic_labels
 from .utils import echo_info, echo_warn, echo_err, echo_strategies, only_one_strategy
 
 class App(object):
@@ -250,6 +251,45 @@ class App(object):
         echo(conf_mat)
 
 
+    def _evaluate_antibiotic_labels(self, strategy, human_username, other_human=None,
+            also_labeled_by=None, n_resamples=None, days=None):
+        """Compares a strategy's (or `other_human`'s) antibiotic_labels against
+        `human_username`'s, over the episodes that human labeled."""
+        if human_username is None:
+            return echo_err("Error: Evaluating antibiotics labels needs -u, the human "
+                "annotator to compare against.")
+        task = strategy.task
+        if days is None:
+            days = int(self.config.get("RELEVANCE_DAYS") or self.db.DEFAULT_RELEVANCE_DAYS)
+        def labels(**source):
+            return self.db.get_antibiotic_labels_with_relevance(task, days=days,
+                include_empty=True, **source)
+
+        df_human = labels(human_username=human_username)
+        ep_ids = set(df_human["FK_episode_id"])
+        if also_labeled_by is not None:
+            ep_ids &= set(labels(human_username=also_labeled_by)["FK_episode_id"])
+        if other_human is not None:
+            df_pred = labels(human_username=other_human)
+            # For inter-labeler reliability, only compare episodes both humans labeled
+            ep_ids &= set(df_pred["FK_episode_id"])
+            source = f"{other_human}'s labels"
+        else:
+            df_pred = labels(strategy=strategy)
+            source = f"Strategy {strategy.name}"
+        if len(ep_ids) == 0:
+            return echo_warn(f"Warn: No episodes labeled by {human_username} to compare "
+                f"for {task.name}, skipping")
+
+        ep_ids = sorted(ep_ids)
+        num_unlabeled = len(set(ep_ids) - set(df_pred["FK_episode_id"]))
+        echo_info(f"{source} vs {human_username}: {len(ep_ids)} episodes, relevance window "
+            f"{days} days" + (f" ({num_unlabeled} episodes have no labels from this "
+            "strategy, counted as nothing found)" if num_unlabeled else ""))
+        report, _ = evaluate_antibiotic_labels(df_human, df_pred, ep_ids, n_resamples)
+        echo(report)
+
+
     def export_episode_labels(self, output, episode_label_task=None, strategy_name=None,
             human_username=None, days=None, relevant_only=False):
         if human_username is not None:
@@ -283,7 +323,8 @@ class App(object):
 
 
     def evaluate_episode_label_strategies(self, episode_label_task=None, strategy_name=None,
-            human_username=None, other_human=None, also_labeled_by=None, bootstrap_samples=None):
+            human_username=None, other_human=None, also_labeled_by=None, bootstrap_samples=None,
+            days=None):
         strategies = find_strategies(output_type=out_t.EPISODE_LABEL, task=episode_label_task,
             name_glob=strategy_name)
         if len(strategies) == 0:
@@ -294,6 +335,13 @@ class App(object):
 
         for strategy_cls in strategies:
             strategy = strategy_cls(self.db, self.config)
+            if strategy.task.label_table == "antibiotic_labels":
+                if other_human is not None:
+                    if strategy.task.name in seen_tasks: continue
+                    seen_tasks.add(strategy.task.name)
+                self._evaluate_antibiotic_labels(strategy, human_username, other_human,
+                    also_labeled_by, bootstrap_samples, days)
+                continue
             vocab = strategy.task.vocab
 
             ep_ids = None

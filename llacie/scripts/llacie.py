@@ -249,9 +249,16 @@ def export_episode_labels(app, episode_label_task=None, strategy_name=None,
     "for the evaluation. Can be different from -u.")
 @click.option('-B', '--bootstrap-samples', default=1000, type=int, 
     help="For bootstrapped confidence intervals, specify the # of resamples. Default is 1000.")
+@click.option('-D', '--days', default=None, type=int, 
+    help="Antibiotics only: relevance window in days, as for export. Defaults to "
+    "RELEVANCE_DAYS in .env, or 30.")
 @click.pass_obj
 def evaluate_episode_labels(app, episode_label_task=None, strategy_name=None,
-        human_username=None, other_human=None, also_labeled_by=None, bootstrap_samples=None):
-    """Evaluate episode labelling strategies against human annotations."""
+        human_username=None, other_human=None, also_labeled_by=None, bootstrap_samples=None,
+        days=None):
+    """Evaluate episode labelling strategies against human annotations.
+
+    For antibiotics (needs -u): drugs found or missed per episode, then start/end dates,
+    duration and current for the drugs both found, then relevance."""
     app.evaluate_episode_label_strategies(episode_label_task, strategy_name, human_username,
-        other_human, also_labeled_by, bootstrap_samples)
+        other_human, also_labeled_by, bootstrap_samples, days)

@@ -119,9 +119,9 @@ class AntibioticLabelsMixin:
     DEFAULT_RELEVANCE_DAYS = 30
 
     def get_antibiotic_labels_with_relevance(self, task, strategy=None, human_username=None,
-            days=DEFAULT_RELEVANCE_DAYS):
+            days=DEFAULT_RELEVANCE_DAYS, include_empty=False):
         """Returns antibiotic_labels rows for one strategy (or one human annotator), skipping
-        "none found" rows, with a `relevance` column:
+        "none found" rows unless `include_empty`, with a `relevance` column:
 
         - `start_date` on or after the admission date (started during admission) ->
           not_relevant, whatever else is known
@@ -140,6 +140,7 @@ class AntibioticLabelsMixin:
         source_sql = ('al."FK_strategy_id" = :strategy_id AND al."FK_human_annotator" IS NULL'
             if strategy is not None else
             'al."FK_strategy_id" IS NULL AND al."FK_human_annotator" = :human_username')
+        include_empty_sql = "TRUE" if include_empty else "FALSE"
         select_sql = text(f"""
             SELECT al."id", al."FK_episode_id", e."startDTS", al."FK_strategy_id",
                     al."FK_human_annotator", al."FK_note_feature_id",
@@ -158,7 +159,7 @@ class AntibioticLabelsMixin:
                 FROM "{self.prefix}{task.label_table}" AS al
                 JOIN "{self.ep_table}" AS e ON e."id" = al."FK_episode_id"
                 WHERE al."FK_task_id" = :task_id
-                    AND al."drug_name_raw" IS NOT NULL
+                    AND ({include_empty_sql} OR al."drug_name_raw" IS NOT NULL)
                     AND {source_sql}
                 ORDER BY al."FK_episode_id", al."id"
             """)
