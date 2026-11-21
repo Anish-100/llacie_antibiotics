@@ -526,6 +526,8 @@ class LlacieDatabase(object):
         if id_task is None: id_task = annot_task
         annot_by_sql_clause = "IS NOT NULL"
         if annot_by is not None: annot_by_sql_clause = f"= '{annot_by}'"
+        if annot_task.output_type == out_t.EPISODE_LABEL:
+            annot_task_id = int(self.get_or_register_task(annot_task).id)
 
         if id_task.output_type in (out_t.SECTION, out_t.FEATURE, out_t.NOTE_LABEL):
             if annot_task.output_type == out_t.EPISODE_LABEL:
@@ -534,11 +536,11 @@ class LlacieDatabase(object):
                         FROM "{self.prefix}notes" AS n
                         LEFT JOIN "{self.ep_table}" as e
                             ON n."FK_episode_id" = e."id"
-                        LEFT OUTER JOIN "{self.prefix}episode_labels" as el
+                        LEFT OUTER JOIN "{self.prefix}{annot_task.label_table}" as el
                             ON el."FK_episode_id" = e."id"
-                                AND "task_name" = '{annot_task.name}'
+                                AND el."FK_task_id" = {annot_task_id}
                                 AND "FK_human_annotator" {annot_by_sql_clause}
-                        WHERE "task_name" IS NOT NULL
+                        WHERE el."id" IS NOT NULL
                         ORDER BY "id"
                     """)
                 df = pd.read_sql_query(notes_annot_for_task_sql, self.conn)
@@ -549,11 +551,11 @@ class LlacieDatabase(object):
             eps_annot_for_task_sql = text(f"""
                 SELECT DISTINCT e."id"
                     FROM "{self.ep_table}" AS e
-                    LEFT OUTER JOIN "{self.prefix}episode_labels" as el
+                    LEFT OUTER JOIN "{self.prefix}{annot_task.label_table}" as el
                         ON el."FK_episode_id" = e."id"
-                            AND "task_name" = '{annot_task.name}'
+                            AND el."FK_task_id" = {annot_task_id}
                             AND "FK_human_annotator" {annot_by_sql_clause}
-                    WHERE "task_name" IS NOT NULL
+                    WHERE el."id" IS NOT NULL
                     ORDER BY "id"
                 """)
             df = pd.read_sql_query(eps_annot_for_task_sql, self.conn)
