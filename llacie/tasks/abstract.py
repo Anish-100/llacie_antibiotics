@@ -94,6 +94,8 @@ class AbstractEpisodeLabelTask(AbstractTask):
     output_type = TaskOutputType.EPISODE_LABEL
     vocab = None
     max_human_labels = 1
+    # Table (without prefix) that stores this task's labels
+    label_table = "episode_labels"
 
     @classmethod
     @property

@@ -67,6 +67,7 @@ class AntibioticsEpisodeLabelTask(AbstractEpisodeLabelTask):
     the earlier vocab via additional curation (mostly merging and trimming terms).
     """
     name = "antibiotics_eplab1"
+    label_table = "antibiotic_labels"
 
     vocab = Vocab("cleaned_antibiotics.xlsx", sheet_name="Brand Names")
     max_human_labels = 10
