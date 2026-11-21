@@ -184,15 +184,17 @@ def extract_episode_labels(app, episode_label_task=None, strategy_name=None, dry
 @click.pass_obj
 def import_episode_labels(app, episode_label_task, input_xlsx, sheet_name=None, 
         human_username=None):
-    """Import human-annotated episode labels from an XLSX file.
+    """Import human-annotated episode labels from an XLSX (or, for antibiotics, CSV) file.
     
-    Expects an XLSX worksheet with a header row and two specific columns:
+    Every file needs a header row with `FK_episode_id`, which must correspond to a valid
+    `id` in the episodes table. Other columns depend on the task:
 
-    - `FK_episode_id` - must correspond to a valid `id` in the episodes table
+    - symptom tasks: `human_labels` - the human-created label names, delimited by | (pipes)
 
-    - `human_labels` - the human-created label names, delimited by | (pipes)"""
-    #app.db.import_episode_labels(episode_label_task, input_xlsx, sheet_name, human_username)
-    app.db.import_antibiotic_episode_labels(episode_label_task, input_xlsx, sheet_name, human_username)
+    - antibiotics tasks: one row per drug course with `drug_name` and optionally
+    `start_date`, `end_date`, `duration_days` and `current`. Leave `drug_name` empty for an
+    episode with no antibiotics."""
+    app.db.import_episode_labels(episode_label_task, input_xlsx, sheet_name, human_username)
 
 
 @episode_labels.command(name="evaluate")

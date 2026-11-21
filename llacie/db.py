@@ -733,6 +733,9 @@ class LlacieDatabase(object):
         if len(strats) == 0:
             raise RuntimeError("Could not find an episode labelling task by that name")
         strategy = strats[0](self, self.config)
+        if strategy.task.label_table == "antibiotic_labels":
+            return self.import_antibiotic_labels(strategy, input_xlsx, sheet_name,
+                human_username)
 
         df = pd.read_excel(input_xlsx, sheet_name=sheet_name)
         long_df = df.assign(label_name=df['human_labels'].str.split(r'\s*[|]\s*'))
@@ -771,57 +774,75 @@ class LlacieDatabase(object):
         unique_eps = len(long_df['FK_episode_id'].unique())
         echo_info(f"{len(long_df)} labels imported for {unique_eps} episodes.")
     
-    def import_antibiotic_episode_labels(self, episode_label_task, input_xlsx, sheet_name=None, 
+    ANTIBIOTIC_LABEL_COLUMNS = {
+        # spreadsheet column -> key in the feature JSON that to_label_row() reads
+        "drug_name": "Drug Name",
+        "start_date": "Start date",
+        "end_date": "End date",
+        "duration_days": "Duration",
+        "current": "Current",
+    }
+
+    def import_antibiotic_labels(self, strategy, input_file, sheet_name=0,
             human_username=None):
-        echo_info((episode_label_task,input_xlsx))
-        if sheet_name is None: sheet_name = 0
+        """Imports human antibiotics labels into antibiotic_labels, one row per drug course.
 
-        if human_username is None: human_username = getpass.getuser()
-        self.ensure_annotator_exists(human_username)
+        Expects a CSV or XLSX with a header row containing `FK_episode_id` and `drug_name`,
+        and optionally `start_date`, `end_date` (MM/DD/YYYY), `duration_days` and `current`
+        (true/false). A row with an empty `drug_name` means no antibiotics for that episode.
+        Re-importing replaces this annotator's earlier labels for the same episodes."""
+        from .strategies.episode_label.antibiotics import to_label_row, empty_label_row
 
-        strats = find_strategies(output_type=out_t.EPISODE_LABEL, task=episode_label_task)
-        if len(strats) == 0:
-            raise RuntimeError("Could not find an episode labelling task by that name")
-        strategy = strats[0](self, self.config)
+        file_name = getattr(input_file, "name", str(input_file))
+        if file_name.lower().endswith(".csv"):
+            df = pd.read_csv(input_file)
+        else:
+            df = pd.read_excel(input_file, sheet_name=sheet_name)
+        missing = {"FK_episode_id", "drug_name"} - set(df.columns)
+        if missing:
+            raise RuntimeError(f"Missing required column(s): {', '.join(sorted(missing))}")
+        df = df.dropna(subset=["FK_episode_id"])
 
-        df = pd.read_excel(input_xlsx, sheet_name=sheet_name)
-        filtered_df = df.dropna(axis=0,subset=['label_name']) # Maybe remove this later
-        print('filtered df')
-        print(filtered_df.head())
-        filtered_df['label_value'] = filtered_df['label_value'].fillna(-1)
-        if len(filtered_df) < len(df):
-            echo_warn(f"{len(df) - len(filtered_df)} rows in the XLSX had zero labels")
-        long_df = filtered_df[['FK_episode_id', 'label_name', 'label_value']].copy()
-        vocab = strategy.task.vocab
-        echo_info(f'Vocab {[vocab._terms]}')
-        invalid_terms = [term for term in long_df.label_name if term not in vocab]
-        if len(invalid_terms) > 0:
-            raise RuntimeError(f"Invalid labels not in the vocab: {invalid_terms}")
+        def cell(value):
+            if pd.isna(value): return None
+            if isinstance(value, float) and value.is_integer(): return int(value)
+            return value
 
-        long_df['FK_task_id'] = strategy.task_id
-        long_df['task_name'] = strategy.task.name
-        long_df['FK_human_annotator'] = human_username
-        long_df['line_number'] = df.groupby('FK_episode_id').cumcount() + 1
+        rows_by_episode = {}
+        for _, row in df.iterrows():
+            item = {key: cell(row[col]) for col, key in self.ANTIBIOTIC_LABEL_COLUMNS.items()
+                if col in df.columns}
+            label_row = to_label_row(item) if item.get("Drug Name") else empty_label_row()
+            rows_by_episode.setdefault(int(row["FK_episode_id"]), []).append(label_row)
+        # An episode with any drug doesn't also need the "none found" row
+        for ep_id, label_rows in rows_by_episode.items():
+            drugs = [r for r in label_rows if r["drug_name_raw"] is not None]
+            rows_by_episode[ep_id] = drugs if drugs else [empty_label_row()]
+
         params = {
-            "ep_ids": [int(ep_id) for ep_id in long_df['FK_episode_id'].unique()],
+            "ep_ids": list(rows_by_episode),
             "task_id": strategy.task_id,
             "human_username": human_username
         }
-        delete_labels_sql = text(f"""
-            DELETE FROM "{self.prefix}episode_labels" 
+        self.conn.execute(text(f"""
+            DELETE FROM "{self.prefix}antibiotic_labels"
                 WHERE "FK_episode_id" = ANY(:ep_ids)
                     AND "FK_task_id" = :task_id
                     AND "FK_strategy_id" IS NULL
                     AND "FK_human_annotator" = :human_username
-            """)
-        self.conn.execute(delete_labels_sql, params)
+            """), params)
+        long_df = pd.DataFrame([
+            {"FK_episode_id": ep_id, "FK_task_id": strategy.task_id,
+                "FK_human_annotator": human_username, **label_row}
+            for ep_id, label_rows in rows_by_episode.items() for label_row in label_rows])
+        self.append_df_to_table(long_df, 'antibiotic_labels')  # This also .commit()'s changes
 
-        self.append_df_to_table(long_df, 'episode_labels')  # This also .commit()'s changes
-
-        unique_eps = len(long_df['FK_episode_id'].unique())
-        echo_info(f"{len(long_df)} labels imported for {unique_eps} episodes.")
-    
-
+        unknown = sorted({r for r in long_df["drug_name_raw"].dropna()
+            if long_df.loc[long_df["drug_name_raw"] == r, "drug_name"].isna().all()})
+        if unknown:
+            echo_warn(f"Not in drugs.db, imported with an empty drug_name: {', '.join(unknown)}")
+        num_drugs = int(long_df["drug_name_raw"].notna().sum())
+        echo_info(f"{num_drugs} antibiotic labels imported for {len(rows_by_episode)} episodes.")
 
     def replace_episode_labels(self, ep_label_strategy, row_values, labels_dict):
         if ep_label_strategy.task.output_type != out_t.EPISODE_LABEL:
