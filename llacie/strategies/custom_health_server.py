@@ -62,6 +62,11 @@ class AbstractUciHealthStrategy(AbstractStrategy):
         echo_info(f"Running {len(note_ids)} notes thru the {self.NICE_MODEL_NAME} model "
             f"using the uci_health_server backend")
 
+        sampling_params = dict(self.SAMPLING_PARAMS)
+        # REASONING_EFFORT (e.g. high, or none to omit it) overrides the strategy's default
+        if self.config.get("REASONING_EFFORT") is not None:
+            sampling_params["reasoning_effort"] = self.config.get("REASONING_EFFORT")
+
         for note_id in note_ids:
             row = self.db.get_note_section(note_id, self.sec_strat)
             if row is None:
@@ -70,7 +75,7 @@ class AbstractUciHealthStrategy(AbstractStrategy):
             user_message = self.LLM_USER_PROMPT.format(input=row.section_value)
 
             self.start_timer()
-            response, _ = llm.create_query(user_message, **self.SAMPLING_PARAMS)
+            response, _ = llm.create_query(user_message, **sampling_params)
             runtime = self.stop_timer()
 
             try:

@@ -49,7 +49,10 @@ class UCI_HEALTH:
         return client
 
     def create_query(self,messages:str,model=None, reasoning_effort='high',temperature=0.5,seed=0,client=None)->tuple:
-        """ Sends query to backend, returns tuple of messages, reasoning. """
+        """ Sends query to backend, returns tuple of messages, reasoning.
+
+        `reasoning_effort` of None, '' or 'none' leaves the parameter out of the request, for
+        models whose server rejects it (e.g. GLM via LiteLLM). """
 
         if client is None:
             client = self.create_client()
@@ -58,6 +61,10 @@ class UCI_HEALTH:
             messages = self.USER_PROMPT
 
         
+        optional_params = {}
+        if reasoning_effort is not None and str(reasoning_effort).strip().lower() not in ('', 'none'):
+            optional_params['reasoning_effort'] = str(reasoning_effort).strip()
+
         stream = client.chat.completions.create(
             model=api_model_name() if model is None else model,
             messages=[
@@ -70,10 +77,10 @@ class UCI_HEALTH:
                     "content":messages
                 }
             ],
-                    reasoning_effort=reasoning_effort,
             temperature=temperature,
             seed=seed,
             stream=True,
+            **optional_params,
         )
 
         response_chunks = []
