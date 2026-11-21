@@ -25,9 +25,10 @@ class AntibioticLabelsMixin:
             human_username=None):
         """Imports human antibiotics labels into antibiotic_labels, one row per drug course.
 
-        Expects a CSV or XLSX with a header row containing `FK_episode_id` and `drug_name`,
-        and optionally `start_date`, `end_date` (MM/DD/YYYY), `duration_days` and `current`
-        (true/false). A row with an empty `drug_name` means no antibiotics for that episode.
+        Expects a CSV or XLSX with a header row containing `FK_episode_id` (or
+        `patientEncounterID`, looked up in the episodes table) and `drug_name`, and optionally
+        `start_date`, `end_date` (MM/DD/YYYY), `duration_days` (or `duration`), `current`
+        (true/false) and `admission_date` (checked against the episode's startDTS). A row with an empty `drug_name` means no antibiotics for that episode.
         Re-importing replaces this annotator's earlier labels for the same episodes."""
         from .strategies.episode_label.antibiotics import to_label_row, empty_label_row
 
@@ -36,9 +37,13 @@ class AntibioticLabelsMixin:
             df = pd.read_csv(input_file)
         else:
             df = pd.read_excel(input_file, sheet_name=sheet_name)
+        df = df.rename(columns={"duration": "duration_days"})
+        if "FK_episode_id" not in df.columns and "patientEncounterID" in df.columns:
+            df = self._add_episode_ids_from_encounters(df)
         missing = {"FK_episode_id", "drug_name"} - set(df.columns)
         if missing:
-            raise RuntimeError(f"Missing required column(s): {', '.join(sorted(missing))}")
+            raise RuntimeError(f"Missing required column(s): {', '.join(sorted(missing))} "
+                "(FK_episode_id can instead come from patientEncounterID)")
         df = df.dropna(subset=["FK_episode_id"])
 
         def cell(value):
@@ -81,6 +86,35 @@ class AntibioticLabelsMixin:
             echo_warn(f"Not in drugs.db, imported with an empty drug_name: {', '.join(unknown)}")
         num_drugs = int(long_df["drug_name_raw"].notna().sum())
         echo_info(f"{num_drugs} antibiotic labels imported for {len(rows_by_episode)} episodes.")
+
+    def _add_episode_ids_from_encounters(self, df):
+        """Adds FK_episode_id by looking up each patientEncounterID's episode (its admitting
+        encounter). Rows with an unknown encounter are dropped with a warning. If there is an
+        admission_date column, warns where it differs from the episode's startDTS date."""
+        encounter_ids = pd.to_numeric(df["patientEncounterID"], errors="coerce")
+        episodes = pd.read_sql_query(text(f"""
+            SELECT "id" AS "FK_episode_id", "admitPatientEncounterID", "startDTS"
+                FROM "{self.ep_table}"
+                WHERE "admitPatientEncounterID" = ANY(:encounter_ids)
+            """), self.conn,
+            params={"encounter_ids": [int(e) for e in encounter_ids.dropna().unique()]})
+        df = df.assign(admitPatientEncounterID=encounter_ids).merge(episodes, how="left",
+            on="admitPatientEncounterID")
+
+        unknown = df.loc[df["FK_episode_id"].isna(), "patientEncounterID"].unique()
+        if len(unknown):
+            echo_warn(f"No episode for patientEncounterID(s), skipped: "
+                f"{', '.join(str(e) for e in unknown)}")
+        if "admission_date" in df.columns:
+            admitted = pd.to_datetime(df["admission_date"], errors="coerce").dt.date
+            started = pd.to_datetime(df["startDTS_y" if "startDTS_y" in df else "startDTS"],
+                utc=True).dt.date
+            differs = df.loc[admitted.notna() & started.notna() & (admitted != started),
+                "patientEncounterID"].unique()
+            if len(differs):
+                echo_warn(f"admission_date differs from the episode's startDTS for "
+                    f"patientEncounterID(s): {', '.join(str(e) for e in differs)}")
+        return df
 
     DEFAULT_RELEVANCE_DAYS = 30
 
