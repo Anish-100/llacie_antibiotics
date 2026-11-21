@@ -129,9 +129,30 @@ class LlacieDatabase(AntibioticLabelsMixin):
         elif not overwrite:
             raise UsageError(f"Table {self.prefix}{table_name} contains rows. If "
                 "you want to truncate and recreate this table, use --overwrite.")
-        
+
+        if table_name == 'notes':
+            return self._clear_notes_and_derived_rows()
         self.conn.execute(
             text(f"TRUNCATE \"{self.prefix}{table_name}\" RESTART IDENTITY"))
+
+    def _clear_notes_and_derived_rows(self):
+        """Empties the notes table along with what was computed from the notes: sections,
+        features and strategy-made labels (rows tied to a note feature). Human labels have no
+        note feature, so they are kept; they stay valid when re-imported notes reuse episodes.
+
+        Uses DELETE because TRUNCATE is refused while other tables reference notes."""
+        deleted = {}
+        for table in ["episode_labels", "antibiotic_labels"]:
+            res = self.conn.execute(text(f"""
+                DELETE FROM "{self.prefix}{table}" WHERE "FK_note_feature_id" IS NOT NULL
+                """))
+            deleted[table] = res.rowcount
+        for table in ["note_features", "note_sections", "notes"]:
+            deleted[table] = self.conn.execute(
+                text(f'DELETE FROM "{self.prefix}{table}"')).rowcount
+        self.conn.commit()
+        echo_warn("Overwriting notes: deleted " + ", ".join(f"{n} {table}"
+            for table, n in deleted.items() if n) + " (human labels are kept)")
 
     #############################
     # BASIC FUNCTIONS FOR APPENDING TO, UPDATING, AND RETRIEVING FROM TABLES
