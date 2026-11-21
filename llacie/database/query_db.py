@@ -1,4 +1,7 @@
 import sqlite3 as sql3
+from os import path
+
+DRUGS_DB = path.join(path.dirname(path.abspath(__file__)), 'drugs.db')
 
 def execute_query(value,conn):
     c = conn.cursor()
@@ -12,7 +15,7 @@ def execute_query(value,conn):
     
 def query(value):
     """ used with the llacie program. Send sql queries here"""
-    conn = sql3.connect('llacie/database/drugs.db')
+    conn = sql3.connect(f'file:{DRUGS_DB}?mode=ro', uri=True)
     query_returned = execute_query(value,conn)
     return query_returned
 

@@ -30,7 +30,7 @@ class Vocab:
         elif self.from_file.endswith(".xlsx") or self.from_file.endswith(".xls"):
             echo_info(f"Parsing and caching vocabulary in vocabs/{from_file}")
             print('FILE',self.from_file)
-            if self.from_file == '/app/llacie/vocabs/cleaned_antibiotics.xlsx':
+            if path.basename(self.from_file) == 'cleaned_antibiotics.xlsx':
                 self._parse_df_antibiotics(pd.read_excel(self.from_file,sheet_name=sheet_name))
             else:
                 self._parse_df(pd.read_excel(self.from_file, sheet_name=sheet_name))
