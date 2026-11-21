@@ -34,3 +34,6 @@ share
 !.python-version
 !.github/
 **/llacie/physionet.org
+# Real patient data for runs; only the synthetic mocks are tracked
+examples/real_data/*
+!examples/real_data/mock_*.csv
