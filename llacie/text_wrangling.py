@@ -1,4 +1,6 @@
+import csv
 import re
+from datetime import datetime, timezone
 
 # A version of this was incorporated into ShortHPISectionRegexStrategy
 # It uses the circumstance that EDW replaced newlines with two spaces to
@@ -75,3 +77,70 @@ def cleanup_presenting_sx(llm_output_raw):
     # TODO: excise timing qualifiers (e.g., X days of, for X days, x N days)
     values = filter(is_acceptable_value, values)
     return "\n".join(values)
+
+##################################################################
+# Parsing notes.sus CSV exports
+##################################################################
+
+# The columns of a notes.sus CSV export
+SUS_NOTES_COLUMNS = ["patientEncounterID", "startDTS", "DateOfServiceDTS",
+    "NoteStatusDSC", "NoteID", "note_text"]
+
+def parse_sus_notes_csv(path):
+    """Parse a notes.sus-style CSV export into a list of note records.
+
+    Each record is a dict with `PatientEncounterID` (int), `NoteID` (int, with the
+    letter prefix stripped: LN09019955 -> 9019955, as the database stores integer
+    NoteIDs), `startDTS` and `DateOfServiceDTS` (UTC datetimes) and `note_text`.
+
+    The export has a known defect: when a record's quoted note_text field is empty,
+    the text itself follows as an unquoted line, which CSV readers see as a malformed
+    extra row. Such a line is salvaged as the preceding note's text; unquoted lines
+    that do not follow a note with empty text are skipped."""
+    with open(path, newline='', encoding='utf-8') as f:
+        rows = list(csv.reader(f))
+    if len(rows) == 0:
+        return []
+    header = [name.strip() for name in rows[0]]
+    missing = [col for col in SUS_NOTES_COLUMNS if col not in header]
+    if missing:
+        raise ValueError(f"SUS notes CSV is missing expected columns: {', '.join(missing)}")
+    idx = {col: header.index(col) for col in SUS_NOTES_COLUMNS}
+
+    notes = []
+    for row in rows[1:]:
+        if not any(field.strip() for field in row):
+            continue
+        record = _parse_sus_record(row, idx)
+        if record is not None:
+            notes.append(record)
+        elif len(notes) > 0 and notes[-1]['note_text'] == '':
+            # Salvage the export defect: this unquoted line holds the text of the
+            # preceding note, whose quoted note_text field came out empty
+            notes[-1]['note_text'] = ','.join(row).strip()
+        # Any other unparseable line is skipped
+    return notes
+
+def _parse_sus_record(row, idx):
+    """Parse one well-formed record row of a notes.sus CSV; None if the row is not one."""
+    if len(row) < len(idx):
+        return None
+    try:
+        encounter_id = int(row[idx['patientEncounterID']].strip())
+        note_id = int(re.sub(r'^[A-Za-z]+', '', row[idx['NoteID']].strip()))
+        start_dts = _parse_sus_timestamp(row[idx['startDTS']])
+        dos_dts = _parse_sus_timestamp(row[idx['DateOfServiceDTS']])
+    except ValueError:
+        return None
+    return {
+        'PatientEncounterID': encounter_id,
+        'startDTS': start_dts,
+        'DateOfServiceDTS': dos_dts,
+        'NoteID': note_id,
+        'note_text': row[idx['note_text']],
+    }
+
+def _parse_sus_timestamp(value):
+    """Parse a SUS export timestamp like 3085-09-28T18:36:00Z into a UTC datetime."""
+    dt = datetime.strptime(value.strip(), '%Y-%m-%dT%H:%M:%SZ')
+    return dt.replace(tzinfo=timezone.utc)

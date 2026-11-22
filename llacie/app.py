@@ -12,6 +12,7 @@ from .strategies import find_strategies
 from .tasks.abstract import TaskOutputType as out_t
 from .evaluate import ConfusionMatrix
 from .evaluate_antibiotics import evaluate_antibiotic_labels
+from .text_wrangling import parse_sus_notes_csv
 from .utils import echo_info, echo_warn, echo_err, echo_strategies, only_one_strategy
 
 class App(object):
@@ -114,7 +115,17 @@ class App(object):
 
     def import_notes_csv(self, input_path, overwrite=False):
         echo_info(f"Info: Importing notes from CSV file {input_path}.")
-        df = pd.read_csv(input_path, dtype={"patientEncounterID": str, "NoteID": str})
+        if self._csv_is_sus_export(input_path):
+            # Raw notes.sus export: repair its broken rows and strip the NoteID
+            # prefix (LN09019955 -> 9019955) to get integer database NoteIDs
+            records = parse_sus_notes_csv(input_path)
+            if len(records) == 0:
+                return echo_warn("Warn: No notes found in the file.")
+            df = pd.DataFrame(records).rename(
+                columns={"PatientEncounterID": "patientEncounterID"})
+            echo_info(f"Info: Detected notes.sus export format ({len(df)} notes).")
+        else:
+            df = pd.read_csv(input_path, dtype={"patientEncounterID": str, "NoteID": str})
         missing = set(self.db.NOTES_CSV_COLUMNS) - set(df.columns)
         if missing:
             return echo_err(f"Error: Missing required column(s): {', '.join(sorted(missing))}")
@@ -126,6 +137,15 @@ class App(object):
         num_new, num_reused = self.db.import_notes_csv(df)
         echo_info(f"Info: Imported {len(df)} notes for {num_new + num_reused} encounters "
             f"({num_new} new episodes, {num_reused} existing).")
+
+    @staticmethod
+    def _csv_is_sus_export(input_path):
+        """A raw notes.sus export is recognized by its letter-prefixed NoteIDs
+        (e.g. LN09019955); cleaned CSVs use integer NoteIDs."""
+        if 'NoteID' not in pd.read_csv(input_path, nrows=0).columns:
+            return False
+        note_ids = pd.read_csv(input_path, usecols=['NoteID'], dtype=str)['NoteID'].dropna()
+        return bool(note_ids.str.match(r'^[A-Za-z]').any())
 
 
     def import_notes_edw(self, overwrite=False, resume_note_text=False):

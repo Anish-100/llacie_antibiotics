@@ -52,7 +52,9 @@ def import_notes_text(app, input_path, overwrite):
 @click.pass_obj
 def import_notes_csv(app, input_path, overwrite):
     """Import notes from a CSV with patientEncounterID, startDTS, DateOfServiceDTS, NoteID
-    and note_text columns (one row per note; other columns are ignored)."""
+    and note_text columns (one row per note; other columns are ignored). Raw notes.sus
+    exports (letter-prefixed NoteIDs) are detected automatically: their broken rows are
+    repaired and the NoteID prefix is stripped."""
     app.import_notes_csv(input_path, overwrite)
 
 @import_notes.command(name="edw")
