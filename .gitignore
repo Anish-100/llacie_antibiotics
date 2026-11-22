@@ -37,3 +37,5 @@ share
 # Real patient data for runs; only the synthetic mocks are tracked
 examples/real_data/*
 !examples/real_data/mock_*.csv
+examples/antibiotics/actual/labels.csv
+examples/antibiotics/actual/notes.sus-infxn.consistent-dates.200.csv
