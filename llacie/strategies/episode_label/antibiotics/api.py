@@ -11,7 +11,7 @@ class AntibioticsEpisodeLabelApiStrategy(
     """
     task = AntibioticsEpisodeLabelTask
     name = f"episode_label.antibiotics_eplab1.api.{api_model_label()}"
-    version = "0.0.2"
+    version = "0.0.3"
     prereq_tasks = []
 
     BATCH_SIZE = 1000

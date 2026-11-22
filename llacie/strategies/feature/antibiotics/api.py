@@ -13,7 +13,7 @@ class AntibioticsApiStrategy(AbstractUciHealthStrategy):
     """
     task = AntibioticsFeatureTask
     name = f"feature.antibiotics.api.{api_model_label()}"
-    version = "0.0.1"
+    version = "0.0.2"
     prereq_tasks = []
 
     SECTION_STRATEGY_CLASS = AntibioticsNoStrategy
@@ -26,29 +26,35 @@ class AntibioticsApiStrategy(AbstractUciHealthStrategy):
         Use only the information in the text provided to answer the question.
         If a patient denies something, do not include it in your answer.
         After you provide an answer, you immediately stop talking.
-        Remember, do not infer what is given beyong the notes, only provide info that is within the note itself. 
-        Use the drug name mentioned in the note, nothing else. 
+        Remember, do not infer what is given beyond the notes, only provide info that is within the note itself.
+        Name each drug by its generic name, even when the note uses a brand name or an abbreviation.
         """)
     LLM_USER_PROMPT = dedent("""\
-Read the following patient history and list the antibiotic medications the patient was taking before coming to the hospital.
+Read the following patient history and list the antibiotics (antibacterial medications)
+the patient was taking before coming to the hospital.
 
-Include only antibiotics prescribed or taken prior to this hospital admission, such 
-as those started by a primary care provider, urgent care, or during a recent prior 
+Include only antibiotics prescribed or taken prior to this hospital admission, such
+as those started by a primary care provider, urgent care, or during a recent prior
 hospitalization that has since ended.
 
-Do not include antibiotics started for the first time during this admission.
-
-Exclusions — do NOT extract:
-- Antiretroviral therapy (ART) for HIV (e.g., bictegravir, emtricitabine, tenofovir, 
-  efavirenz, or any fixed-dose combination ART tablet)
-- Hepatitis C direct-acting antivirals (e.g., sofosbuvir, velpatasvir, ledipasvir)
-- Do not extract general antimicrobials either.
+Do NOT extract:
+- Antibiotics started for the first time during this admission, including those given in
+  the emergency department, at admission, or recommended or planned in the assessment
+- Antifungals (e.g., fluconazole, micafungin), antivirals (e.g., acyclovir, oseltamivir,
+  HIV or hepatitis C medications) and antiparasitics
 
 Return a JSON list of dicts. Each dict must follow this format:
 (
-  "Drug Name": str,   // Base drug name. For combinations, join with underscore 
-                      // (e.g., amoxicillin_clavulanate). Strip modifiers: DS, XR, 
-                      // ER, SR, CR, XL, LA, HCl.
+  "Drug Name": str,   // Generic drug name in lowercase. Never a brand name (Keflex ->
+                      // cephalexin, Levaquin -> levofloxacin) or an abbreviation (CTX,
+                      // TMP-SMX); write the regimen's drugs as separate dicts (RIPE ->
+                      // rifampin, isoniazid, pyrazinamide, ethambutol). For combinations,
+                      // join with underscore (amoxicillin_clavulanate,
+                      // piperacillin_tazobactam, trimethoprim_sulfamethoxazole).
+                      // Strip salts and modifiers: DS, XR, ER, SR, CR, XL, LA, HCl,
+                      // monohydrate, macrocrystals.
+                      // Vancomycin only: write vancomycin_po or vancomycin_iv for its
+                      // route, or vancomycin if the note does not say.
   "Route": str,       // e.g., PO, IV, IM, inhaled
   "Dose": str,        // e.g., 500mg, 2g — leave empty if unknown
   "Frequency": str,   // e.g., BID, daily, q8h — leave empty if unknown
@@ -59,6 +65,6 @@ Return a JSON list of dicts. Each dict must follow this format:
                       // it was stopped before admission — leave empty if the note does not say
 )
 
-If a value is unknown, leave it empty. Do not guess.
-Return nothing except the above json. 
+List each course of a drug once. If a value is unknown, leave it empty. Do not guess.
+Return nothing except the above json.
         {input}""")
