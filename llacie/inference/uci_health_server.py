@@ -49,10 +49,13 @@ class UCI_HEALTH:
         return client
 
     def create_query(self,messages:str,model=None, reasoning_effort='high',temperature=0.5,seed=0,client=None)->tuple:
-        """ Sends query to backend, returns tuple of messages, reasoning.
+        """ Sends query to backend via the OpenAI Responses API, returns tuple of messages,
+        reasoning.
 
-        `reasoning_effort` of None, '' or 'none' leaves the parameter out of the request, for
-        models whose server rejects it (e.g. GLM via LiteLLM). """
+        `reasoning_effort` (low/medium/high) is sent as `reasoning.effort`; None, '' or 'none'
+        leaves it out. The Responses API accepts it for GLM too, where chat completions'
+        `reasoning_effort` was rejected. Reasoning comes back as raw reasoning text
+        (gpt-oss) or as a reasoning summary (GLM); either is returned. """
 
         if client is None:
             client = self.create_client()
@@ -60,39 +63,31 @@ class UCI_HEALTH:
         if type(messages) is not str:
             messages = self.USER_PROMPT
 
-        
-        optional_params = {}
+        reasoning_params = {"summary": "auto"}
         if reasoning_effort is not None and str(reasoning_effort).strip().lower() not in ('', 'none'):
-            optional_params['reasoning_effort'] = str(reasoning_effort).strip()
+            reasoning_params["effort"] = str(reasoning_effort).strip()
 
-        stream = client.chat.completions.create(
+        stream = client.responses.create(
             model=api_model_name() if model is None else model,
-            messages=[
-                {
-                    "role":"system",
-                    "content": self.SYSTEM_PROMPT
-                },
-                {
-                    "role":"user",
-                    "content":messages
-                }
-            ],
+            instructions=self.SYSTEM_PROMPT,
+            input=messages,
+            reasoning=reasoning_params,
             temperature=temperature,
-            seed=seed,
+            # The Responses API has no seed parameter; pass it through for servers that use it
+            extra_body={"seed": seed} if seed is not None else None,
             stream=True,
-            **optional_params,
         )
 
         response_chunks = []
         reasoning_chunks = []
-        for chunk in stream:
-            if chunk.choices:
-                # --- Extract reasoning
-                if getattr(chunk.choices[0].delta, 'reasoning_content', None) is not None:
-                    reasoning_chunks.append(chunk.choices[0].delta.reasoning_content)
-                # --- Extract response
-                if getattr(chunk.choices[0].delta, 'content', None) is not None:
-                    response_chunks.append(chunk.choices[0].delta.content)
+        for event in stream:
+            if event.type == "response.output_text.delta":
+                response_chunks.append(event.delta)
+            elif event.type in ("response.reasoning_text.delta",
+                    "response.reasoning_summary_text.delta"):
+                reasoning_chunks.append(event.delta)
+            elif event.type in ("response.failed", "error"):
+                raise OpenAIError(f"Response failed: {getattr(event, 'response', event)}")
 
         response = ''.join(response_chunks)
         reasoning = ''.join(reasoning_chunks)
