@@ -30,19 +30,19 @@ class AntibioticsApiStrategy(AbstractUciHealthStrategy):
         Use the drug name mentioned in the note, nothing else. 
         """)
     LLM_USER_PROMPT = dedent("""\
-Read the following patient history and list the antimicrobial (antibacterial, antiviral, 
-antifungal) medications the patient was taking before coming to the hospital.
+Read the following patient history and list the antibiotic medications the patient was taking before coming to the hospital.
 
-Include only antimicrobials prescribed or taken prior to this hospital admission, such 
+Include only antibiotics prescribed or taken prior to this hospital admission, such 
 as those started by a primary care provider, urgent care, or during a recent prior 
 hospitalization that has since ended.
 
-Do not include antimicrobials started for the first time during this admission.
+Do not include antibiotics started for the first time during this admission.
 
 Exclusions — do NOT extract:
 - Antiretroviral therapy (ART) for HIV (e.g., bictegravir, emtricitabine, tenofovir, 
   efavirenz, or any fixed-dose combination ART tablet)
 - Hepatitis C direct-acting antivirals (e.g., sofosbuvir, velpatasvir, ledipasvir)
+- Do not extract general antimicrobials either.
 
 Return a JSON list of dicts. Each dict must follow this format:
 (
@@ -60,4 +60,5 @@ Return a JSON list of dicts. Each dict must follow this format:
 )
 
 If a value is unknown, leave it empty. Do not guess.
+Return nothing except the above json. 
         {input}""")
