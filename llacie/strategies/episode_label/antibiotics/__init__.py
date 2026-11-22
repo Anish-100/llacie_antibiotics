@@ -60,11 +60,17 @@ def empty_label_row():
         "duration_days": None, "is_current": None}
 
 
+def drug_lookup_key(raw):
+    """The form drugs.db names are stored in: lowercase, with runs of spaces, hyphens and
+    slashes as one underscore (e.g. Piperacillin-Tazobactam -> piperacillin_tazobactam)."""
+    return re.sub(r'[\s\-/]+', '_', raw.lower()).strip('_')
+
+
 def to_label_row(item):
     """Converts one drug dict from the feature's JSON into an antibiotic_labels row."""
     raw = (item.get('Drug Name') or '').strip()
     try:
-        drug_name = query(raw.lower().replace(' ', '_'))[0][0]
+        drug_name = query(drug_lookup_key(raw))[0][0]
     except IndexError:
         drug_name = None    # Not in drugs.db; drug_name_raw keeps what the model wrote
     start_date = parse_date(item.get('Start date'))
