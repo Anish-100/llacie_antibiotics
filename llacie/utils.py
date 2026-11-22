@@ -33,6 +33,15 @@ def echo_info(message):
 DEFAULT_FAILURES_FILE = "logs/failed_notes.csv"
 FAILURES_COLUMNS = ["timestamp", "strategy", "note_id", "episode_id", "note_feature_id", "reason"]
 
+def _append_failure_row(failures_file, row):
+    """Appends one row to a failures CSV, creating it with the header row if needed."""
+    if path.dirname(failures_file): makedirs(path.dirname(failures_file), exist_ok=True)
+    is_new = not path.isfile(failures_file) or path.getsize(failures_file) == 0
+    with open(failures_file, 'a', newline='') as f:
+        writer = csv.writer(f)
+        if is_new: writer.writerow(FAILURES_COLUMNS)
+        writer.writerow(row)
+
 def record_failure(config, strategy_name, reason, note_id=None, episode_id=None,
         note_feature_id=None, response=None):
     """Warns about a note/episode a strategy could not process and appends it to the failures
@@ -40,31 +49,56 @@ def record_failure(config, strategy_name, reason, note_id=None, episode_id=None,
     after the run.
 
     If given, `response` (e.g. the model's raw reply) is saved to its own text file in a
-    failed_responses/ folder next to the CSV, and the reason names that file."""
+    failed_responses/ folder next to the CSV, and the reason names that file.
+
+    The current directory is not always writable (e.g. inside a container); if the failures
+    file can't be written there, it falls back to ~/.local/state/llacie/, and if no writable
+    location exists the failure is only reported on stderr. Problems logging a failure never
+    crash the run."""
     ids = ", ".join(f"{k} {v}" for k, v in [("note", note_id), ("episode", episode_id),
         ("note feature", note_feature_id)] if v is not None)
 
     failures_file = (config.get('FAILURES_FILE') if config is not None else None) \
         or DEFAULT_FAILURES_FILE
-    if path.dirname(failures_file): makedirs(path.dirname(failures_file), exist_ok=True)
-    if response is not None:
-        responses_dir = path.join(path.dirname(failures_file), "failed_responses")
-        makedirs(responses_dir, exist_ok=True)
+    dir_name = path.dirname(failures_file)
+
+    target_dir = dir_name or '.'
+    try:
+        if dir_name: makedirs(dir_name, exist_ok=True)
+    except OSError:
+        state_dir = path.join(path.expanduser('~'), '.local', 'state', 'llacie')
+        try:
+            makedirs(state_dir, exist_ok=True)
+            target_dir = state_dir
+            echo_warn(f"Cannot write to {dir_name or 'the current directory'}; "
+                f"logging failures to {state_dir} instead")
+        except OSError:
+            target_dir = None
+
+    response_note = ""
+    if response is not None and target_dir is not None:
+        responses_dir = path.join(target_dir, "failed_responses")
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         which = "_".join(f"{k}{v}" for k, v in [("note", note_id), ("episode", episode_id)]
             if v is not None) or "unknown"
         response_file = path.join(responses_dir, f"{strategy_name}.{which}.{stamp}.txt")
-        with open(response_file, 'w') as f:
-            f.write(str(response))
-        reason = f"{reason} (raw response: {response_file})"
-    echo_warn(f"Failed ({ids}): {reason}")
+        try:
+            makedirs(responses_dir, exist_ok=True)
+            with open(response_file, 'w') as f:
+                f.write(str(response))
+            response_note = f" (raw response: {response_file})"
+        except OSError as e:
+            response_note = f" (raw response could not be saved: {e})"
 
-    is_new = not path.isfile(failures_file) or path.getsize(failures_file) == 0
-    with open(failures_file, 'a', newline='') as f:
-        writer = csv.writer(f)
-        if is_new: writer.writerow(FAILURES_COLUMNS)
-        writer.writerow([datetime.now().isoformat(timespec='seconds'), strategy_name,
-            note_id, episode_id, note_feature_id, reason])
+    echo_warn(f"Failed ({ids}): {reason}{response_note}")
+
+    if target_dir is not None:
+        row = [datetime.now().isoformat(timespec='seconds'), strategy_name,
+            note_id, episode_id, note_feature_id, reason]
+        try:
+            _append_failure_row(path.join(target_dir, path.basename(failures_file)), row)
+        except OSError as e:
+            echo_warn(f"Could not record the failure in a file ({e})")
 
 def strtobool(val):
     """Convert a string representation of truth to true (1) or false (0).
