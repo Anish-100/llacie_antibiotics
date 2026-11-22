@@ -105,12 +105,12 @@ def parse_date(value):
 
 
 def get_duration(duration, start_date, end_date):
-    """Duration in days: the model's stated Duration if it is a whole number, otherwise
-    computed from the dates counting both the start and end day."""
+    """Duration in days, counting both the start and end day: computed from the dates when
+    both are known, otherwise the stated Duration if it is a whole number."""
+    if start_date is not None and end_date is not None and end_date >= start_date:
+        return (end_date - start_date).days + 1
     if isinstance(duration, int) and not isinstance(duration, bool):
         return duration
     if isinstance(duration, str) and duration.strip().isdigit():
         return int(duration.strip())
-    if start_date is not None and end_date is not None:
-        return (end_date - start_date).days + 1
     return None

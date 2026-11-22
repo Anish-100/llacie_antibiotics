@@ -13,7 +13,7 @@ class AntibioticsApiStrategy(AbstractUciHealthStrategy):
     """
     task = AntibioticsFeatureTask
     name = f"feature.antibiotics.api.{api_model_label()}"
-    version = "0.0.2"
+    version = "0.0.3"
     prereq_tasks = []
 
     SECTION_STRATEGY_CLASS = AntibioticsNoStrategy
@@ -58,7 +58,8 @@ Return a JSON list of dicts. Each dict must follow this format:
   "Route": str,       // e.g., PO, IV, IM, inhaled
   "Dose": str,        // e.g., 500mg, 2g — leave empty if unknown
   "Frequency": str,   // e.g., BID, daily, q8h — leave empty if unknown
-  "Duration": int,    // Duration in days — leave empty if unknown
+  "Duration": int,    // Duration in days, counting both the first and last day
+                      // (e.g., 3/1 to 3/7 is 7) — leave empty if unknown
   "Start date": str,  // MM/DD/YYYY — leave empty if unknown
   "End date": str,    // MM/DD/YYYY — leave empty if unknown
   "Current": bool     // true if the patient was still taking it when admitted, false if
