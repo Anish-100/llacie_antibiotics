@@ -55,7 +55,7 @@ Return a JSON list of dicts. Each dict must follow this format:
                       // monohydrate, macrocrystals.
                       // Vancomycin only: write vancomycin_po or vancomycin_iv for its
                       // route, or vancomycin if the note does not say.
-  "Route": str,       // e.g., PO, IV, IM, inhaled
+  "Route": str,       // e.g., PO, IV, IM, inhaled, only consider antibiotics taken in from PO or IV. 
   "Dose": str,        // e.g., 500mg, 2g — leave empty if unknown
   "Frequency": str,   // e.g., BID, daily, q8h — leave empty if unknown
   "Duration": int,    // Duration in days, counting both the first and last day
